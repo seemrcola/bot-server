@@ -66,3 +66,4 @@ export function getConfigHealth(): {
     summary: getConfigSummary()
   };
 }
+export { getDefaultConfig } from './default.js';

@@ -1,7 +1,7 @@
 import { BaseTool } from '../base-tool.js';
 import { ToolParameters, ToolResult } from '../../types/index.js';
 
-export class JoJoTool extends BaseTool {
+export default class JoJoTool extends BaseTool {
   private jojoResponses = [
     'オラオラオラオラ！(ORAORAORAORAORA!)',
     '無駄無駄無駄無駄！(MUDAMUDAMUDAMUDA!)',
@@ -37,11 +37,13 @@ export class JoJoTool extends BaseTool {
             },
         },
         required: [],
-      }
+      },
+      ['jojo', 'ゴゴゴ', 'mudamuda', '無駄', '替身', 'stand', '承太郎', '迪奥', 'dio']
     );
   }
 
   protected async _execute(params: ToolParameters): Promise<ToolResult> {
+    // 这里的随机回复是根据jojo动漫的台词库随机返回的
     const randomResponse = this.jojoResponses[Math.floor(Math.random() * this.jojoResponses.length)];
     return {
       success: true,

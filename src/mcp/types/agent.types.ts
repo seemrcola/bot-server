@@ -41,6 +41,7 @@ export interface Plan {
 export interface ITool {
   name: string;
   description: string;
+  keywords?: string[];
   parameters: ToolParameterSchema;
   _call(args: ToolParameters): Promise<ToolResult>;
 }
@@ -60,6 +61,7 @@ export interface ToolParameters {
 export interface ToolInfo {
   name: string;
   description: string;
+  keywords?: string[];
   parameters: ToolParameterSchema;
   version: string;
   enabled: boolean;

@@ -9,7 +9,6 @@ import { createMCPLogger } from '../../utils/logger.js';
 import { EventEmitter } from 'events';
 import { ToolRegistry } from '../tool-registry.js';
 import { MessageProcessor, MCPMessage, MCPMessageType } from '../../agent/message-processor.js';
-import { JoJoTool } from './jojo-tool.js';
 
 const logger = createMCPLogger('Server');
 

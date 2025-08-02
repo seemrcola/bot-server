@@ -155,11 +155,14 @@ export class MCPAgent implements IMCPAgent {
         const toolTasks = analysisResult.subTasks.filter(task => task.needsTool);
 
         if (toolTasks.length > 0) {
-          const firstTask = toolTasks[0];
-          const toolName = (firstTask?.suggestedTools && firstTask.suggestedTools.length > 0)
-            ? firstTask.suggestedTools[0]
-            : '工具';
-          yield `✅ 检测到需要调用 ${toolName}...\n\n`;
+          const requiredTools = Array.from(new Set(
+            toolTasks.flatMap(task => task.suggestedTools || [])
+          ));
+
+          if (requiredTools.length > 0) {
+            const toolNames = requiredTools.join(', ');
+            yield `✅ 检测到需要调用: ${toolNames}\n\n`;
+          }
           await new Promise(resolve => setTimeout(resolve, 300));
 
           // 阶段3：工具调用
@@ -571,6 +574,26 @@ ${userMessagePrompt}
 
   getLLMNLProcessor(): LLMNLPProcessor | undefined {
     return this.llmNLProcessor;
+  }
+
+  /**
+   * 获取所有已注册工具的关键词
+   */
+  getAllToolKeywords(): string[] {
+    const allKeywords: string[] = [];
+    
+    for (const [toolName, client] of this.toolToClientMap) {
+      try {
+        const toolInfo = client.getToolInfo(toolName);
+        if (toolInfo && toolInfo.keywords) {
+          allKeywords.push(...toolInfo.keywords);
+        }
+      } catch (error) {
+        logger.warn(`Failed to get keywords for tool: ${toolName}`, error);
+      }
+    }
+    
+    return Array.from(new Set(allKeywords)); // 去重
   }
 
   private getClientForTool(toolName: string): MCPClient | undefined {

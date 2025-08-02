@@ -20,7 +20,7 @@
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
     "downlevelIteration": true,
-    "types": ["node", "vitest/globals"]
+    "types": ["node"]
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules"]

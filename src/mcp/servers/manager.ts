@@ -67,12 +67,10 @@ export class ServerManager {
         host: isProduction ? '0.0.0.0' : 'localhost'
       };
 
-      // 导入JoJoTool
-      const jojoToolPath = path.join(serverPath, `jojo-tool${ext}`);
-      const { JoJoTool } = await import(jojoToolPath);
+      const tools = await this.loadTools(serverPath, ext);
 
       // 创建服务器实例
-      const serverInstance = new ServerClass(serverOptions, [JoJoTool]);
+      const serverInstance = new ServerClass(serverOptions, tools);
       
       logger.info(`Starting server '${name}' on ${serverOptions.host}:${serverOptions.port}`);
       await serverInstance.start();
@@ -83,6 +81,28 @@ export class ServerManager {
     } catch (error) {
         logger.error(`Failed to load or start server '${name}'`, { path: serverPath, error });
     }
+  }
+
+  private async loadTools(serverPath: string, ext: string): Promise<(new () => any)[]> {
+    const toolFiles = await fs.readdir(serverPath);
+    const toolClasses: (new () => any)[] = [];
+
+    for (const file of toolFiles) {
+      if (file.endsWith(`.tool${ext}`)) {
+        const toolPath = path.join(serverPath, file);
+        try {
+          const toolModule = await import(toolPath);
+          const ToolClass = toolModule.default || Object.values(toolModule)[0];
+          if (typeof ToolClass === 'function') {
+            toolClasses.push(ToolClass);
+            logger.info(`Loaded tool from ${file}`);
+          }
+        } catch (error) {
+          logger.error(`Failed to load tool from ${toolPath}`, error);
+        }
+      }
+    }
+    return toolClasses;
   }
 
   public getServer(name: string): MCPServer | undefined {

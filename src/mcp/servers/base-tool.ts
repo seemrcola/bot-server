@@ -10,16 +10,19 @@ import { MCPError } from '../utils/errors.js';
 export abstract class BaseTool implements ITool {
   public readonly name: string;
   public readonly description: string;
+  public readonly keywords?: string[];
   public readonly parameters: ToolInfo['parameters'];
   protected readonly logger;
 
   constructor(
     name: string,
     description: string,
-    parameters: ToolInfo['parameters']
+    parameters: ToolInfo['parameters'],
+    keywords?: string[]
   ) {
     this.name = name;
     this.description = description;
+    this.keywords = keywords;
     this.parameters = parameters;
     this.logger = createMCPLogger(`Tool:${name}`);
   }
@@ -120,10 +123,11 @@ export abstract class BaseTool implements ITool {
   /**
    * 获取工具信息
    */
-  getInfo(): { name: string; description: string; parameters: ToolInfo['parameters'] } {
+  getInfo(): { name: string; description: string; keywords?: string[]; parameters: ToolInfo['parameters'] } {
     return {
       name: this.name,
       description: this.description,
+      keywords: this.keywords,
       parameters: this.parameters
     };
   }
