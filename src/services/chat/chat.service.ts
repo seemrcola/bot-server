@@ -37,8 +37,8 @@ class ChatService {
     const lastMessage = messages[messages.length - 1];
     const userMessage = lastMessage?.content as string;
 
-    // If the agent is available, always let it decide.
-    // The agent is responsible for both tool calls and regular chat.
+    // 如果agent可用，总是让它决定。
+    // agent负责工具调用和常规聊天。
     if (agent) {
         logger.info('Agent is available, routing message to MCPAgent...');
         return agent.processMessageStream(userMessage, {
@@ -47,7 +47,7 @@ class ChatService {
         });
     }
 
-    // Fallback to direct LLM call if agent is not available
+    // 如果agent不可用，回退到直接调用LLM。
     logger.warn('MCPAgent not available, falling back to direct LLM streaming.');
     return this.createDirectLLMStream(messages);
   }
