@@ -19,7 +19,7 @@ const logger = createMCPLogger('IntentAnalyzer');
 export class IntentAnalyzer {
   private llmProcessor: LLMNLPProcessor;
   private config: IntentAnalyzerConfig;
-  private availableTools: string[];
+  private availableTools: Array<{name: string, description: string}> = [];
 
   constructor(
     llmProcessor: LLMNLPProcessor,
@@ -27,7 +27,8 @@ export class IntentAnalyzer {
     config: Partial<IntentAnalyzerConfig> = {}
   ) {
     this.llmProcessor = llmProcessor;
-    this.availableTools = availableTools;
+    // 将字符串数组转换为对象数组（暂时没有描述）
+    this.availableTools = availableTools.map(name => ({ name, description: `工具: ${name}` }));
     this.config = {
       maxSubTasks: 10,
       minConfidence: 0.6,
@@ -165,7 +166,7 @@ export class IntentAnalyzer {
     result.subTasks.forEach(task => {
       if (task.suggestedTools) {
         task.suggestedTools = task.suggestedTools.filter(tool => 
-          this.availableTools.includes(tool)
+          this.availableTools.some(availableTool => availableTool.name === tool)
         );
       }
     });
@@ -214,8 +215,16 @@ export class IntentAnalyzer {
    * 更新可用工具列表
    */
   updateAvailableTools(tools: string[]): void {
-    this.availableTools = tools;
+    this.availableTools = tools.map(name => ({ name, description: `工具: ${name}` }));
     logger.info('更新可用工具列表', { toolsCount: tools.length });
+  }
+
+  /**
+   * 更新可用工具列表（包含描述）
+   */
+  updateAvailableToolsWithDescriptions(tools: Array<{name: string, description: string}>): void {
+    this.availableTools = tools;
+    logger.info('更新可用工具列表（含描述）', { toolsCount: tools.length });
   }
 
   /**

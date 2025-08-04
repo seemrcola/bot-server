@@ -37,15 +37,18 @@ class ChatService {
     const lastMessage = messages[messages.length - 1];
     const userMessage = lastMessage?.content as string;
 
-    if (agent && userMessage && (await this.checkIfNeedsToolCall(agent, userMessage))) {
-        logger.info('Message needs tool call, using progressive streaming...');
-        return this.createProgressiveToolCallStream(agent, userMessage, {
+    // If the agent is available, always let it decide.
+    // The agent is responsible for both tool calls and regular chat.
+    if (agent) {
+        logger.info('Agent is available, routing message to MCPAgent...');
+        return agent.processMessageStream(userMessage, {
           messages,
           sessionId: sessionId || 'default',
         });
     }
 
-    logger.info('Simple chat detected, using direct LLM streaming...');
+    // Fallback to direct LLM call if agent is not available
+    logger.warn('MCPAgent not available, falling back to direct LLM streaming.');
     return this.createDirectLLMStream(messages);
   }
 
@@ -82,40 +85,7 @@ class ChatService {
     return chain.stream({ messages });
   }
 
-  /**
-   * 快速判断消息是否需要工具调用
-   */
-  private async checkIfNeedsToolCall(agent: IMCPAgent, message: string): Promise<boolean> {
-    const status = agent.getStatus();
-    const availableTools = status.registeredTools || [];
-    const lowerMessage = message.toLowerCase();
 
-    // 检查是否包含工具名称
-    for (const tool of availableTools) {
-      if (lowerMessage.includes(tool.toLowerCase())) return true;
-    }
-
-    // 动态获取所有工具的关键词
-    const allKeywords = agent.getAllToolKeywords();
-    for (const keyword of allKeywords) {
-      if (lowerMessage.includes(keyword.toLowerCase())) return true;
-    }
-
-    // 通用的工具调用关键词
-    const genericKeywords = ['调用', '使用', '工具', 'tool', 'call'];
-    for (const keyword of genericKeywords) {
-      if (lowerMessage.includes(keyword.toLowerCase())) return true;
-    }
-
-    return false;
-  }
-
-  /**
-   * 创建渐进式工具调用流式输出
-   */
-  private async* createProgressiveToolCallStream(agent: IMCPAgent, userMessage: string, context: any): AsyncIterable<string> {
-    yield* agent.processMessageStream(userMessage, context);
-  }
   /**
    * 获取聊天模型配置
    */

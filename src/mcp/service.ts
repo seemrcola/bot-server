@@ -13,7 +13,7 @@ type ServerRegistration = {
   name: string;
   server: IMCPServer;
 };
-class MCPService {
+export class MCPService {
   private static instance: MCPService;
   private agent: MCPAgent | undefined;
   private configManager: ConfigManager;

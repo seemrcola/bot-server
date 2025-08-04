@@ -15,6 +15,7 @@ export interface IMCPServer {
   registerTool(tool: ITool): void;
   unregisterTool(toolName: string): void;
   getRegisteredTools(): ToolInfo[];
+  getOptions(): any; // 添加 getOptions 方法
 }
 
 // ==================== 服务端配置 ====================

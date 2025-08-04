@@ -22,11 +22,14 @@ export class LLMService implements ILLMService {
 
   constructor(config?: LLMConfig) {
     // 优先使用传入的配置，否则从全局配置管理器获取
-    this.config = config || configManager.getConfig().llm;
+    const globalConfig = configManager.getConfig();
+    const llmConfig = config || globalConfig.llm;
     
-    if (!this.config) {
+    if (!llmConfig) {
         throw new LLMServiceError('LLM configuration is missing.');
     }
+    
+    this.config = llmConfig;
 
     this.metrics = {
       totalRequests: 0,
@@ -42,34 +45,9 @@ export class LLMService implements ILLMService {
   }
 
   /**
-   * 订阅配置变更
-   */
-  private subscribeToConfigChanges(): void {
-    // 简化配置订阅
-    this.unsubscribeConfig = () => {};
-  }
-
-  /**
-   * 重新初始化服务
-   */
-  private reinitialize(): void {
-    // 重置指标
-    this.resetMetrics();
-    
-    logger.info('LLM服务已重新初始化', {
-      model: this.config.model,
-      baseURL: this.config.configuration?.baseURL
-    });
-  }
-
-  /**
    * 销毁服务
    */
   destroy(): void {
-    if (this.unsubscribeConfig) {
-      this.unsubscribeConfig();
-      this.unsubscribeConfig = undefined;
-    }
     logger.info('LLM服务已销毁');
   }
 

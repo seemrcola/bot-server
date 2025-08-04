@@ -7,9 +7,13 @@
  */
 import { mcpService } from './service.js';
 import * as mcpTypes from './types/index.js';
+import type { MCPService } from './service.js';
 
 // 统一的 MCP 模块导出
-const mcp = {
+const mcp: {
+  service: MCPService;
+  types: typeof mcpTypes;
+} = {
   /**
    * MCP 核心服务，负责模块的生命周期和 Agent 的管理。
    * 外部模块应通过此服务与 MCP 模块交互。

@@ -8,7 +8,7 @@
  * 3. 对配置进行验证，并提供健康检查。
  * 4. （未来）支持动态配置更新和订阅。
  */
-import { MCPAgentConfig } from '../types/index.js';
+import { MCPAgentConfig, LLMConfig } from '../types/index.js';
 import { DEFAULT_CONFIG as defaultConfig } from './default.js';
 import { validateConfig } from './validator.js';
 import _ from 'lodash';
@@ -45,14 +45,30 @@ export class ConfigManager {
    * 从环境变量中读取配置
    */
   private getEnvConfig(): Partial<MCPAgentConfig> {
-    const envConfig: Partial<MCPAgentConfig> = {
-        llm: {
-            apiKey: process.env['LLM_API_KEY'],
-            model: process.env['LLM_MODEL'],
-            baseURL: process.env['LLM_BASE_URL'],
-        }
-    };
-    return _.omitBy(envConfig, _.isNil);
+    const envConfig: Partial<MCPAgentConfig> = {};
+    
+    // 只有当环境变量存在时才设置对应的配置
+    if (process.env['LLM_API_KEY'] || process.env['LLM_MODEL'] || process.env['LLM_BASE_URL']) {
+      const llmConfig: Partial<LLMConfig> = {};
+      
+      if (process.env['LLM_API_KEY']) {
+        llmConfig.apiKey = process.env['LLM_API_KEY'];
+      }
+      
+      if (process.env['LLM_MODEL']) {
+        llmConfig.model = process.env['LLM_MODEL'];
+      }
+      
+      if (process.env['LLM_BASE_URL']) {
+        llmConfig.configuration = {
+          baseURL: process.env['LLM_BASE_URL']
+        };
+      }
+      
+      envConfig.llm = llmConfig as LLMConfig;
+    }
+    
+    return envConfig;
   }
 
   /**

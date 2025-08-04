@@ -129,10 +129,20 @@ export function replacePromptTemplate(template: string, variables: Record<string
 /**
  * 获取意图分析提示词
  */
-export function getIntentAnalysisPrompt(userMessage: string, availableTools: string[]): string {
-  const toolsInfo = availableTools.length > 0 
-    ? `\n\n## 可用工具\n${availableTools.map(tool => `- ${tool}`).join('\n')}`
-    : '';
+export function getIntentAnalysisPrompt(userMessage: string, availableTools: string[] | Array<{name: string, description: string}>): string {
+  let toolsInfo = '';
+  
+  if (availableTools.length > 0) {
+    if (typeof availableTools[0] === 'string') {
+      // 兼容旧格式：只有工具名称
+      toolsInfo = `\n\n## 可用工具\n${(availableTools as string[]).map(tool => `- ${tool}`).join('\n')}`;
+    } else {
+      // 新格式：包含工具名称和描述
+      toolsInfo = `\n\n## 可用工具\n${(availableTools as Array<{name: string, description: string}>).map(tool => 
+        `- **${tool.name}**: ${tool.description}`
+      ).join('\n')}`;
+    }
+  }
   
   return `${INTENT_ANALYSIS_PROMPT}${toolsInfo}\n\n用户消息：${userMessage}`;
 }

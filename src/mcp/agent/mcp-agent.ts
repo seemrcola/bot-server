@@ -7,11 +7,11 @@ import {
   MCPResponse,
   ChatContext,
   MCPAgentConfig,
-  LLMConfig,
+
 } from '../types/index.js';
 import { MCPError } from '../utils/errors.js';
 import { createMCPLogger } from '../utils/logger.js';
-import { LLMNLPProcessor, LLMConfigManager } from '../llm/index.js';
+import { LLMNLPProcessor } from '../llm/index.js';
 import { MCPClient } from '../client/mcp-client.js';
 import { ServerManager } from '../servers/manager.js';
 import { IntentAnalyzer } from './intent-analyzer.js';
@@ -256,22 +256,9 @@ export class MCPAgent implements IMCPAgent {
       }
     } catch (error) {
       logger.error('混合处理过程中出现错误', error);
-
-      // 降级处理：使用原有的简单思考模式
-      try {
-        const fallbackResponse = await this.think(message, context.history || []);
-        return {
-          needsToolCall: false,
-          enhancedMessage: fallbackResponse,
-        };
-      } catch (fallbackError) {
-        logger.error('降级处理也失败', fallbackError);
-        return {
-          needsToolCall: false,
-          enhancedMessage: message,
-          error: '处理消息时出现错误，请稍后重试',
-        };
-      }
+      // Since the main logic failed, we re-throw the error to be handled by the caller.
+      // This avoids complex fallback logic within the agent itself.
+      throw MCPError.executionError('处理消息时出现错误，请稍后重试', error);
     }
   }
 
@@ -284,13 +271,29 @@ export class MCPAgent implements IMCPAgent {
     }
 
     try {
-      // 获取可用工具列表
-      const availableTools = Array.from(this.toolToClientMap.keys());
+      // 获取可用工具列表及其描述
+      const availableToolsWithDescriptions: Array<{name: string, description: string}> = [];
+      
+      for (const [toolName, client] of this.toolToClientMap) {
+        try {
+          const toolInfo = client.getToolInfo(toolName);
+          availableToolsWithDescriptions.push({
+            name: toolName,
+            description: toolInfo?.description || `工具: ${toolName}`
+          });
+        } catch (error) {
+          logger.warn(`获取工具 ${toolName} 的描述失败`, error);
+          availableToolsWithDescriptions.push({
+            name: toolName,
+            description: `工具: ${toolName}`
+          });
+        }
+      }
 
       // 初始化意图分析器
       this.intentAnalyzer = new IntentAnalyzer(
         this.llmNLProcessor,
-        availableTools,
+        availableToolsWithDescriptions.map(tool => tool.name), // 保持兼容性
         {
           maxSubTasks: 8,
           minConfidence: 0.6,
@@ -300,6 +303,9 @@ export class MCPAgent implements IMCPAgent {
           toolCallTimeout: 15000
         }
       );
+
+      // 更新工具描述信息
+      this.intentAnalyzer.updateAvailableToolsWithDescriptions(availableToolsWithDescriptions);
 
       // 初始化任务执行器
       this.taskExecutor = new TaskExecutor(
@@ -315,7 +321,8 @@ export class MCPAgent implements IMCPAgent {
       );
 
       logger.info('意图分析器和任务执行器初始化完成', {
-        availableToolsCount: availableTools.length
+        availableToolsCount: availableToolsWithDescriptions.length,
+        toolsWithDescriptions: availableToolsWithDescriptions.map(t => `${t.name}: ${t.description}`)
       });
     } catch (error) {
       logger.error('初始化意图组件失败', error);
@@ -351,59 +358,7 @@ ${context.history && context.history.length > 0 ?
 
 
 
-  private async think(message: string, history: any[]): Promise<string> {
-    const prompt = this.constructPrompt(message, history, true);
-    if (!this.llmNLProcessor) {
-      throw MCPError.internalError('LLM NLP Processor not initialized');
-    }
-    const llmResponse = await this.llmNLProcessor.generateText(prompt);
-    // 对于简单思考，直接返回LLM的响应
-    return llmResponse;
-  }
 
-  /**
-   * 构建给LLM的思考提示
-   */
-  private constructPrompt(
-    message: string,
-    history: any[],
-    isSimpleThink = false
-  ): string {
-    const availableTools = Array.from(this.toolToClientMap.keys());
-    const toolDescriptions = availableTools
-      .map((toolName) => {
-        const tool = this.getToolInfo(toolName);
-        return `- ${toolName}: ${
-          tool?.description || 'No description available.'
-        }`;
-      })
-      .join('\n');
-
-    const historyLog = history
-      .map((item: any) => {
-        return `- ${item.role}: ${item.content}`;
-      })
-      .join('\n');
-
-    const userMessagePrompt = `用户消息: "${message}"`;
-
-    if (isSimpleThink) {
-      return `你是一个有决策能力的 AI 智能体，请直接回复用户的请求。\n历史对话:\n${historyLog}\n${userMessagePrompt}`;
-    }
-
-    // 简单的提示词构建（这个方法现在主要用于降级处理）
-    return `你是一个有决策能力的 AI 智能体，你可以调用工具来完成你的任务。
-
-可用工具:
-${toolDescriptions}
-
-历史对话:
-${historyLog}
-
-${userMessagePrompt}
-
-请根据用户的请求提供有用的回复。`;
-  }
 
 
 
@@ -417,10 +372,7 @@ ${userMessagePrompt}
   async shutdown(): Promise<void> {
     try {
       logger.info('Shutting down MCP Agent...');
-      if (this.unsubscribeConfig) {
-        this.unsubscribeConfig();
-        this.unsubscribeConfig = undefined;
-      }
+
       await this.cleanup();
       this.initialized = false;
       logger.info('MCP Agent shutdown completed');
@@ -464,8 +416,24 @@ ${userMessagePrompt}
 
         // 更新意图分析器的可用工具列表
         if (this.intentAnalyzer) {
-          const availableTools = Array.from(this.toolToClientMap.keys());
-          this.intentAnalyzer.updateAvailableTools(availableTools);
+          const availableToolsWithDescriptions: Array<{name: string, description: string}> = [];
+          
+          for (const [toolName, client] of this.toolToClientMap) {
+            try {
+              const toolInfo = client.getToolInfo(toolName);
+              availableToolsWithDescriptions.push({
+                name: toolName,
+                description: toolInfo?.description || `工具: ${toolName}`
+              });
+            } catch (error) {
+              availableToolsWithDescriptions.push({
+                name: toolName,
+                description: `工具: ${toolName}`
+              });
+            }
+          }
+          
+          this.intentAnalyzer.updateAvailableToolsWithDescriptions(availableToolsWithDescriptions);
         }
       } catch (error) {
         logger.error(
@@ -502,55 +470,6 @@ ${userMessagePrompt}
     };
   }
 
-  // Chainable configuration methods remain the same
-  configureLLM(config: Partial<LLMConfig>): MCPAgent {
-    this.configProxy.updateConfig({ llm: config } as any);
-    return this;
-  }
-
-  configureClient(config: Partial<MCPClientConfig>): MCPAgent {
-    this.configProxy.updateConfig({ client: config } as any);
-    return this;
-  }
-
-  configureServer(config: Partial<MCPServerConfig>): MCPAgent {
-    this.configProxy.updateConfig({ server: config } as any);
-    return this;
-  }
-
-  configureNLP(config: any): MCPAgent {
-    this.configProxy.updateConfig({ nlp: config });
-    return this;
-  }
-
-  configureTools(config: any): MCPAgent {
-    this.configProxy.updateConfig({ tools: config });
-    return this;
-  }
-
-  configureLogging(config: any): MCPAgent {
-    this.configProxy.updateConfig({ logging: config });
-    return this;
-  }
-
-  configure(config: Partial<MCPAgentConfig>): MCPAgent {
-    const configCenter = getConfigCenter();
-    configCenter.updateConfig(config, 'agent-configure');
-    return this;
-  }
-
-  getMCPClient(toolName: string): MCPClient | undefined {
-    return this.getClientForTool(toolName);
-  }
-
-  getMCPServer(name: string): any | undefined {
-    return this.serverManager.getServer(name);
-  }
-
-  getLLMNLProcessor(): LLMNLPProcessor | undefined {
-    return this.llmNLProcessor;
-  }
-
   /**
    * 获取所有已注册工具的关键词
    */
@@ -571,16 +490,13 @@ ${userMessagePrompt}
     return Array.from(new Set(allKeywords)); // 去重
   }
 
+
+
   private getClientForTool(toolName: string): MCPClient | undefined {
     return this.toolToClientMap.get(toolName);
   }
 
   destroy(): void {
-    if (this.unsubscribeConfig) {
-      this.unsubscribeConfig();
-      this.unsubscribeConfig = undefined;
-    }
-
     for (const client of this.clients.values()) {
       client.disconnect().catch((error: any) => {
         logger.error('销毁时断开客户端连接失败', error);

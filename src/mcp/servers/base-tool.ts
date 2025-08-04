@@ -22,7 +22,9 @@ export abstract class BaseTool implements ITool {
   ) {
     this.name = name;
     this.description = description;
-    this.keywords = keywords;
+    if (keywords !== undefined) {
+      this.keywords = keywords;
+    }
     this.parameters = parameters;
     this.logger = createMCPLogger(`Tool:${name}`);
   }
@@ -124,11 +126,16 @@ export abstract class BaseTool implements ITool {
    * 获取工具信息
    */
   getInfo(): { name: string; description: string; keywords?: string[]; parameters: ToolInfo['parameters'] } {
-    return {
+    const info: { name: string; description: string; keywords?: string[]; parameters: ToolInfo['parameters'] } = {
       name: this.name,
       description: this.description,
-      keywords: this.keywords,
       parameters: this.parameters
     };
+    
+    if (this.keywords !== undefined) {
+      info.keywords = this.keywords;
+    }
+    
+    return info;
   }
 }
