@@ -25,6 +25,7 @@ import type { LLMConfig } from './llm.types.js';
 import type { NLPConfig } from './nlp.types.js';
 import type { MCPClientConfig } from './client.types.js';
 import type { MCPServerConfig } from './server.types.js';
+import type { PromptCollection } from './prompts.types.js';
 
 // ==================== 主配置接口 ====================
 
@@ -36,6 +37,7 @@ export interface MCPConfig {
   nlp: NLPConfig;
   logging: LoggingConfig;
   llm?: LLMConfig;
+  prompts?: Partial<PromptCollection>;
 }
 
 // 新的配置类型别名，用于配置中心
@@ -71,6 +73,7 @@ export interface ConfigValidationResult {
 // ==================== Agent配置 ====================
 
 export interface MCPAgentConfig extends MCPConfig {
+  prompts?: Partial<PromptCollection>;
   // Agent特有的配置可以在这里扩展
 }
 

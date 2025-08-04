@@ -58,3 +58,17 @@ export type {
   IntentAnalyzerConfig,
   TaskExecutorConfig,
 } from './intent.types.js';
+
+// Prompt types
+export type {
+  PromptKey,
+  PromptCollection,
+  IPromptManager,
+} from './prompts.types.js';
+
+// Resource types
+export type {
+  ResourceURI,
+  IResourceProvider,
+  IResourceManager,
+} from './resources.types.js';

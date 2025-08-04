@@ -209,3 +209,93 @@ async function startServer() {
 **完成！**
 
 你的新服务器和新工具现在已经完全集成到系统中了。这种基于依赖注入的架构使得扩展变得非常灵活和清晰。
+
+### 3. Prompt Management (提示词管理)
+
+为了实现最大的灵活性，MCP 模块内置了一个 `PromptManager`，它允许你动态地配置和覆盖 Agent 使用的所有系统提示词。
+
+**工作原理**:
+
+*   `PromptManager` 在启动时会加载一套默认的提示词 (位于 `mcp/prompts/default.ts`)。
+*   你可以在应用的配置文件中提供一个 `prompts` 对象，用于覆盖任何默认的提示词。
+*   Agent 的核心逻辑（如意图分析、最终响应生成）会通过 `PromptManager` 来获取提示词，而不是硬编码。
+
+**如何自定义提示词**:
+
+在你的主配置文件 (例如，通过 `mcp.service.start(config)`) 中传入 `prompts` 字段：
+
+```typescript
+// config.ts
+import { mcp } from './mcp/index.js';
+
+const myCustomConfig: Partial<mcp.types.MCPAgentConfig> = {
+  // ... 其他配置
+  prompts: {
+    intent_analysis: "你是一个超级厉害的意图分析师，请用最高效的方式分解任务...",
+    simple_task: "你好，我是你的专属AI，请问有什么可以帮你的？"
+  }
+};
+
+// 在启动时传入
+await mcp.service.start(myCustomConfig, serverRegistrations);
+```
+
+你可以覆盖的提示词键值包括：`intent_analysis`, `simple_task`, `final_response`, `tool_error`。
+
+### 4. Resource Management (资源管理)
+
+`ResourceManager` 提供了一个统一的接口来访问外部资源，例如本地文件系统或未来的网络资源。这使得工具的实现更加干净，因为它们不需要关心具体的资源加载逻辑。
+
+**工作原理**:
+
+*   `ResourceManager` 采用**提供者模式** (`Provider Pattern`)。
+*   目前，系统内置了一个 `FileProvider`，用于处理 `file://` 协议的资源。
+*   当工具或 Agent 需要资源时，它们只需调用 `mcp.resources.getResource(uri)`。
+
+**如何使用**:
+
+假设你的一个工具需要读取一个本地的知识库文件。
+
+```typescript
+// src/tools/knowledge.tool.ts
+import { BaseTool } from '../mcp/servers/base-tool.js';
+import { mcp } from '../mcp/index.js'; // 统一入口
+
+export class KnowledgeTool extends BaseTool {
+  // ... 构造函数等
+
+  protected async _execute(params: ToolParameters): Promise<ToolResult> {
+    const { topic } = params;
+    try {
+      // 通过 ResourceManager 安全地获取文件内容
+      const knowledgeBase = await mcp.resources.getResource('file://data/knowledge_base.txt');
+      
+      // ... 基于文件内容进行处理
+      const answer = this.findAnswer(knowledgeBase, topic);
+
+      return { success: true, data: answer };
+    } catch (error) {
+      return { success: false, error: '无法加载知识库' };
+    }
+  }
+}
+```
+
+这种设计将资源加载的逻辑与工具的业务逻辑完全解耦，未来可以轻松地添加 `HttpProvider` 或 `DatabaseProvider` 而无需修改任何工具代码。
+
+---
+## 5. 未来工作与潜在优化
+
+当前的 MCP 框架提供了一个坚实的基础。以下是未来增强的一些潜在方向：
+
+### ResourceManager 优化
+
+*   **实现 `HttpProvider`**: 创建一个提供者来处理 `http://` 和 `https://` URI，允许工具直接从 Web 获取资源。
+*   **添加缓存层**: 引入一个可以包装其他提供者（如 `HttpProvider`）的缓存提供者，以缓存频繁访问的资源，从而提高性能并减少网络请求。这可以支持 TTL（生存时间）等策略。
+*   **支持流式处理**: 为了处理大型资源（例如大文件或 API 响应），`load` 方法可以升级为返回 `ReadableStream`，以防止高内存消耗。
+
+### PromptManager 优化
+
+*   **通过 ResourceManager 加载提示**: 一个关键的改进是让 `PromptManager` 使用 `ResourceManager` 从外部文件（例如 `file://./prompts.json` 甚至 `https://.../prompts.json`）加载其提示模板。这将使提示内容与代码库完全解耦。
+*   **国际化 (i18n)**: 通过扩展 `getPrompt` 以接受 `locale` 参数（例如 `en-US`）来支持多种语言。底层的提示数据结构也需要更新以存储每个提示键的翻译。
+*   **版本控制**: 为提示引入版本控制系统（例如 `getPrompt('intent_analysis', { version: 'v2' })`）。这对于 A/B 测试不同的提示策略和安全回滚非常有价值。

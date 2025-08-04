@@ -6,6 +6,9 @@ import { MCPAgent } from './agent/mcp-agent.js';
 import { MCPAgentConfig, IMCPServer } from './types/index.js';
 import { createMCPLogger, setGlobalLogger } from './utils/logger.js';
 import { ConfigManager } from './config/manager.js';
+import { resourceManager } from './resources/manager.js';
+import { FileProvider } from './resources/providers/file-provider.js';
+import { promptManager } from './prompts/manager.js';
 
 const logger = createMCPLogger('MCPService');
 
@@ -45,13 +48,21 @@ export class MCPService {
     logger.info('Starting MCPService...');
     setGlobalLogger(createMCPLogger('MCPModule'));
 
+    // 1. 初始化资源管理器并注册提供者
+    this.initializeResourceManager();
+
+    // 2. 加载和验证配置
     if (config) {
       this.configManager.updateConfig(config);
     }
+    const finalConfig = this.configManager.getConfig() as any;
+    
+    // 2.1 从配置中加载自定义提示词
+    if (finalConfig.prompts) {
+      promptManager.loadPrompts(finalConfig.prompts);
+    }
 
-    const finalConfig = this.configManager.getConfig();
     const validation = this.configManager.getHealth();
-
     if (!validation.isValid) {
       logger.warn('MCP configuration has issues.', {
         errors: validation.errors,
@@ -59,6 +70,7 @@ export class MCPService {
       });
     }
 
+    // 3. 如果启用，则初始化并启动 Agent
     if (finalConfig.enabled) {
       this.agent = new MCPAgent(finalConfig, serverRegistrations);
       await this.agent.initialize();
@@ -66,6 +78,17 @@ export class MCPService {
     } else {
       logger.info('MCP is disabled in the configuration.');
     }
+  }
+
+  /**
+   * 初始化资源管理器并注册默认的提供者
+   */
+  private initializeResourceManager(): void {
+    // 注册文件提供者
+    const fileProvider = new FileProvider(); // 默认根目录是 process.cwd()
+    resourceManager.registerProvider(fileProvider);
+    
+    // 在这里可以注册其他提供者，例如 HttpProvider
   }
 
   /**

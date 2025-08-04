@@ -7,11 +7,17 @@
  */
 import { mcpService } from './service.js';
 import * as mcpTypes from './types/index.js';
+import { promptManager } from './prompts/manager.js';
+import { resourceManager } from './resources/manager.js';
 import type { MCPService } from './service.js';
+import type { PromptManager } from './prompts/manager.js';
+import type { ResourceManager } from './resources/manager.js';
 
 // 统一的 MCP 模块导出
 const mcp: {
   service: MCPService;
+  prompts: PromptManager;
+  resources: ResourceManager;
   types: typeof mcpTypes;
 } = {
   /**
@@ -23,6 +29,22 @@ const mcp: {
    * const agent = mcp.service.getAgent();
    */
   service: mcpService,
+
+  /**
+   * 提示词管理器，负责加载和提供系统提示词。
+   * @example
+   * import { mcp } from './mcp';
+   * const prompt = mcp.prompts.getPrompt('intent_analysis');
+   */
+  prompts: promptManager,
+
+  /**
+   * 资源管理器，负责加载和提供外部资源。
+   * @example
+   * import { mcp } from './mcp';
+   * const fileContent = await mcp.resources.getResource('file://./my-data.txt');
+   */
+  resources: resourceManager,
   
   /**
    * MCP 模块的所有公开类型定义。
