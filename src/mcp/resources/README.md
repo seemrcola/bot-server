@@ -56,10 +56,69 @@ export class KnowledgeTool extends BaseTool {
 }
 ```
 
-## 如何添加一个新的提供者
+## 如何添加并注入一个新的提供者
 
-1.  **创建提供者类**: 在 `providers/` 目录下创建一个新文件，例如 `http-provider.ts`。
-2.  **实现接口**: 让你的类实现 `IResourceProvider` 接口，它需要包含：
-    *   一个 `protocol` 属性 (例如 `'http'`)。
-    *   一个 `load(uri: string)` 方法，负责发起网络请求并返回内容。
-3.  **注册提供者**: 在 `ResourceManager` 的构造函数中，将你的新提供者实例化并添加到 `providers` 映射中。
+得益于依赖注入，为 MCP 添加新的资源处理能力变得非常简单，并且**完全无需修改 `mcp` 模块的内部代码**。
+
+**第一步：在应用层创建你的提供者**
+
+在你的项目中的任何位置（例如 `src/resource-providers/`）创建新的提供者文件。
+
+```typescript
+// src/resource-providers/http-provider.ts
+
+import { IResourceProvider, ResourceURI } from '../mcp/types/index.js';
+import fetch from 'node-fetch';
+
+export class HttpProvider implements IResourceProvider {
+  
+  public canHandle(uri: ResourceURI): boolean {
+    return uri.startsWith('http://') || uri.startsWith('https://');
+  }
+
+  public async load(uri: ResourceURI): Promise<string> {
+    const response = await fetch(uri);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch resource from ${uri}: ${response.statusText}`);
+    }
+    return response.text();
+  }
+}
+```
+
+**第二步：在主入口注入你的提供者**
+
+打开你的应用主入口文件（例如 `src/index.ts`），在启动 `mcp` 服务时，将你的新提供者实例传入。
+
+```typescript
+// src/index.ts
+
+import { mcp } from './mcp/index.js';
+import { FileProvider } from './mcp/resources/providers/file-provider.js';
+import { HttpProvider } from './resource-providers/http-provider.js'; // 导入你的新提供者
+
+async function startServer() {
+  // ... 其他代码 ...
+
+  // 准备要注入的资源提供者列表
+  const resourceProviders = [
+    new FileProvider(), // 注入内置的文件提供者
+    new HttpProvider(), // 注入你的自定义 HTTP 提供者
+  ];
+
+  // 在启动 MCP 服务时，将服务器列表和资源提供者列表一并传入
+  await mcp.service.start(
+    undefined, 
+    serverRegistrations, // 你的服务器列表
+    resourceProviders    // 你的资源提供者列表
+  );
+
+  // ... 启动你的 Express 应用 ...
+}
+
+startServer();
+```
+
+**完成！**
+
+现在，你在任何工具中调用 `mcp.resources.getResource('https://...')` 时，`ResourceManager` 都会自动使用你刚刚注入的 `HttpProvider` 来处理该请求。系统实现了完全的解耦和高可扩展性。

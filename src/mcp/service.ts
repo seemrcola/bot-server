@@ -4,10 +4,11 @@
  */
 import { MCPAgent } from './agent/mcp-agent.js';
 import { MCPAgentConfig, IMCPServer } from './types/index.js';
+import { IResourceProvider } from './types/resources.types.js';
 import { createMCPLogger, setGlobalLogger } from './utils/logger.js';
 import { ConfigManager } from './config/manager.js';
 import { resourceManager } from './resources/manager.js';
-import { FileProvider } from './resources/providers/file-provider.js';
+
 import { promptManager } from './prompts/manager.js';
 
 const logger = createMCPLogger('MCPService');
@@ -38,7 +39,8 @@ export class MCPService {
    */
   async start(
     config?: Partial<MCPAgentConfig>,
-    serverRegistrations?: ServerRegistration[]
+    serverRegistrations?: ServerRegistration[],
+    resourceProviders?: IResourceProvider[]
   ): Promise<void> {
     if (this.agent) {
       logger.info('MCPService has already been started.');
@@ -48,8 +50,12 @@ export class MCPService {
     logger.info('Starting MCPService...');
     setGlobalLogger(createMCPLogger('MCPModule'));
 
-    // 1. 初始化资源管理器并注册提供者
-    this.initializeResourceManager();
+    // 1. 如果有外部资源提供者，则注册它们
+    if (resourceProviders) {
+      for (const provider of resourceProviders) {
+        resourceManager.registerProvider(provider);
+      }
+    }
 
     // 2. 加载和验证配置
     if (config) {
@@ -80,16 +86,6 @@ export class MCPService {
     }
   }
 
-  /**
-   * 初始化资源管理器并注册默认的提供者
-   */
-  private initializeResourceManager(): void {
-    // 注册文件提供者
-    const fileProvider = new FileProvider(); // 默认根目录是 process.cwd()
-    resourceManager.registerProvider(fileProvider);
-    
-    // 在这里可以注册其他提供者，例如 HttpProvider
-  }
 
   /**
    * 获取 MCPAgent 的单例

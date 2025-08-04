@@ -12,6 +12,7 @@ import { mcp } from './mcp/index.js';
 import { DefaultMCPServer } from './servers/default/mcp-server.js';
 import AshitaNoJoeTool from './servers/default/ashitano-joe.tool.js';
 import JoJoTool from './servers/default/jojo.tool.js';
+import { FileProvider } from './mcp/resources/providers/file-provider.js';
 
 const app = express();
 const logger = createLogger('Server');
@@ -45,11 +46,16 @@ async function startServer() {
       // Add other servers here if needed
     ];
 
-    // 3. Start the MCP service, injecting the server definitions.
-    // The ConfigManager within MCP will automatically handle loading configurations.
-    await mcp.service.start(undefined, serverRegistrations);
+    // 3. Prepare the resource provider registrations
+    const resourceProviders = [
+      new FileProvider(), // The root directory defaults to process.cwd()
+      // Add other providers like HttpProvider here
+    ];
 
-    // 4. Start the Express application
+    // 4. Start the MCP service, injecting servers and resource providers.
+    await mcp.service.start(undefined, serverRegistrations, resourceProviders);
+
+    // 5. Start the Express application
     app.listen(config.port, () => {
       const agentStatus = mcp.service.getAgent()?.getStatus();
       logger.info('Server started successfully', {
