@@ -9,12 +9,10 @@ import {
   ToolParameters,
   LLMConfig
 } from '../types/index.js';
-// 移除扩展类型的引用
-import { LLMConfigManager } from './config.js';
 import { LLMService } from './service.js';
 import { createMCPLogger } from '../utils/logger.js';
 import { LLMServiceError, LLMParsingError } from './errors.js';
-import { getConfig } from '../config/index.js';
+import { configManager } from '../config/manager.js';
 
 const logger = createMCPLogger('LLMNLPProcessor');
 
@@ -28,7 +26,6 @@ export interface LLMNLPProcessorOptions {
 }
 
 export class LLMNLPProcessor implements INLProcessor {
-  private configManager: LLMConfigManager;
   private llmService: LLMService;
   private options: Required<LLMNLPProcessorOptions>;
   private confidenceThreshold: number = 0.7;
@@ -39,9 +36,8 @@ export class LLMNLPProcessor implements INLProcessor {
     averageProcessingTime: 0
   };
 
-  constructor(configManager: LLMConfigManager, options: LLMNLPProcessorOptions = {}) {
-    this.configManager = configManager;
-    this.llmService = new LLMService(configManager.getConfig());
+  constructor(options: LLMNLPProcessorOptions = {}) {
+    this.llmService = new LLMService(); // LLMService now gets config from the global manager
     
     this.options = {
       enableContextualAnalysis: options.enableContextualAnalysis ?? true,
@@ -265,7 +261,7 @@ export class LLMNLPProcessor implements INLProcessor {
    * 获取可用工具
    */
   private getAvailableTools(): ToolConfig[] {
-    const config = getConfig();
+    const config = configManager.getConfig();
     return Object.values(config.tools).filter((tool: any) => tool.enabled) as any[];
   }
 

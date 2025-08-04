@@ -6,7 +6,7 @@ import { WebSocket } from 'ws';
 import { IMCPClient, ToolResult, ToolInfo, ToolParameters } from '../types/index.js';
 import { MCPError } from '../utils/errors.js';
 import { createMCPLogger } from '../utils/logger.js';
-import { createClientConfigProxy } from '../config/index.js';
+import { configManager } from '../config/manager.js';
 import { EventEmitter } from 'events';
 
 const logger = createMCPLogger('Client');
@@ -28,8 +28,6 @@ export class MCPClient extends EventEmitter implements IMCPClient {
   private heartbeatTimer?: NodeJS.Timeout | null;
   private options: Required<MCPClientOptions>;
   private connection: WebSocket | undefined;
-  private configProxy = createClientConfigProxy();
-  private unsubscribeConfig: (() => void) | undefined;
   private pendingRequests = new Map<string, { resolve: (value: any) => void, reject: (reason?: any) => void, timer: NodeJS.Timeout }>();
   private availableTools: ToolInfo[] = [];
 
@@ -38,7 +36,7 @@ export class MCPClient extends EventEmitter implements IMCPClient {
     super();
     
     // 从配置中心获取默认配置
-    const clientConfig = this.configProxy.getClientConfig();
+    const clientConfig = configManager.getConfig().client;
     
     this.options = {
       serverUrl: clientConfig.serverUrl,
@@ -49,18 +47,9 @@ export class MCPClient extends EventEmitter implements IMCPClient {
       heartbeatInterval: 30000,
       ...options
     };
-
-    // 订阅配置变更
-    this.subscribeToConfigChanges();
   }
 
-  /**
-   * 订阅配置变更
-   */
-  private subscribeToConfigChanges(): void {
-    // 简化配置订阅
-    this.unsubscribeConfig = () => {};
-  }
+
 
   /**
    * 重新连接
@@ -474,12 +463,6 @@ export class MCPClient extends EventEmitter implements IMCPClient {
    * 销毁客户端，清理所有资源
    */
   destroy(): void {
-    // 取消配置订阅
-    if (this.unsubscribeConfig) {
-      this.unsubscribeConfig();
-      this.unsubscribeConfig = undefined;
-    }
-
     // 断开连接
     this.disconnect().catch(error => {
       logger.error('销毁时断开连接失败', error);

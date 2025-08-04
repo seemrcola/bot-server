@@ -6,48 +6,56 @@ import { config } from './config/index.js';
 import { mainRouter } from './routes/index.js';
 import { handleSuccess, handleError } from './middlewares/response.middleware.js';
 import { createLogger } from './utils/logger.js';
-import { MCPService } from './mcp/service.js';
-import { MCPAgentConfig } from "./mcp/types/index.js";
-import { getDefaultConfig } from './mcp/config/index.js';
+import { mcp } from './mcp/index.js';
+
+// --- Application-level Server and Tool definitions ---
+import { DefaultMCPServer } from './servers/default/mcp-server.js';
+import AshitaNoJoeTool from './servers/default/ashitano-joe.tool.js';
+import JoJoTool from './servers/default/jojo.tool.js';
 
 const app = express();
 const logger = createLogger('Server');
 
-// --- 中间件配置 ---
+// --- Middleware Configuration ---
 app.use(express.static('public'));
 app.use(bodyParser.json());
 app.use(cors());
 
-// --- 路由配置 ---
+// --- Route Configuration ---
 app.use('/', mainRouter);
 
-// --- 响应处理中间件 (必须在路由之后) ---
+// --- Response Handling Middleware (must be after routes) ---
 app.use(handleSuccess);
 app.use(handleError);
 
 /**
- * 启动 Express 服务器并执行初始化任务。
+ * Starts the Express server and initializes application services.
  */
 async function startServer() {
   try {
-    // 从MCP模块获取一份完整的默认配置
-    const mcpConfig = getDefaultConfig();
+    // 1. Create instances of our application's servers and tools
+    const defaultServer = new DefaultMCPServer(
+      { port: 4001, host: 'localhost' },
+      [AshitaNoJoeTool, JoJoTool]
+    );
 
-    // 使用环境变量中的值覆盖LLM相关的配置
-    mcpConfig.llm.apiKey = process.env["LLM_API_KEY"] || '';
-    mcpConfig.llm.model = process.env["LLM_MODEL"] || 'deepseek-chat';
-    if (mcpConfig.llm.configuration) {
-        mcpConfig.llm.configuration.baseURL = process.env["LLM_BASE_URL"] || '';
-    }
+    // 2. Prepare the server registrations to be injected into the MCP module
+    const serverRegistrations = [
+      { name: 'default-server', server: defaultServer },
+      // Add other servers here if needed
+    ];
 
-    // 统一启动 MCP 服务, 传入结构完整的配置
-    await MCPService.getInstance().start(mcpConfig);
+    // 3. Start the MCP service, injecting the server definitions.
+    // The ConfigManager within MCP will automatically handle loading configurations.
+    await mcp.service.start(undefined, serverRegistrations);
 
+    // 4. Start the Express application
     app.listen(config.port, () => {
-      const agentStatus = MCPService.getInstance().getAgent()?.getStatus();
+      const agentStatus = mcp.service.getAgent()?.getStatus();
       logger.info('Server started successfully', {
         port: config.port,
         mcpEnabled: agentStatus?.enabled || false,
+        registeredTools: agentStatus?.registeredTools || [],
       });
     });
 
@@ -57,5 +65,5 @@ async function startServer() {
   }
 }
 
-// 启动服务器
+// Start the server
 startServer();

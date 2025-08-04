@@ -3,14 +3,14 @@
  */
 
 import { WebSocketServer, WebSocket } from 'ws';
-import { IMCPServer, ITool, ToolInfo, ToolParameters, ToolResult } from '../../types/index.js';
-import { MCPError } from '../../utils/errors.js';
-import { createMCPLogger } from '../../utils/logger.js';
+import { IMCPServer, ITool, ToolInfo, ToolParameters, ToolResult } from '../../mcp/types/index.js';
+import { MCPError } from '../../mcp/utils/errors.js';
+import { createMCPLogger } from '../../mcp/utils/logger.js';
 import { EventEmitter } from 'events';
-import { ToolRegistry } from '../tool-registry.js';
-import { MessageProcessor, MCPMessage, MCPMessageType } from '../../agent/message-processor.js';
+import { ToolRegistry } from '../../mcp/servers/tool-registry.js';
+import { MessageProcessor, MCPMessage, MCPMessageType } from '../../mcp/agent/message-processor.js';
 
-const logger = createMCPLogger('Server');
+const logger = createMCPLogger('DefaultMCPServer');
 
 export interface MCPServerOptions {
   port: number;
@@ -19,7 +19,7 @@ export interface MCPServerOptions {
   timeout?: number;
 }
 
-export class MCPServer extends EventEmitter implements IMCPServer {
+export class DefaultMCPServer extends EventEmitter implements IMCPServer {
   private running = false;
   private connections = new Set<WebSocket>();
   private server: WebSocketServer | undefined;
@@ -39,15 +39,15 @@ export class MCPServer extends EventEmitter implements IMCPServer {
     this.toolsToRegister = tools;
     
     // 监听工具注册表事件
-    this.toolRegistry.on('tool-registered', (toolName) => {
+    this.toolRegistry.on('tool-registered', (toolName: string) => {
       this.emit('tool-registered', toolName);
     });
     
-    this.toolRegistry.on('tool-unregistered', (toolName) => {
+    this.toolRegistry.on('tool-unregistered', (toolName: string) => {
       this.emit('tool-unregistered', toolName);
     });
     
-    this.toolRegistry.on('tool-used', (toolName, stats) => {
+    this.toolRegistry.on('tool-used', (toolName: string, stats: any) => {
       this.emit('tool-used', toolName, stats);
     });
   }

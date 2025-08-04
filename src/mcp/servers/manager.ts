@@ -1,17 +1,16 @@
-import path from 'path';
-import fs from 'fs/promises';
-import { fileURLToPath } from 'url';
-import { MCPServer } from './default/mcp-server.js';
 import { createMCPLogger } from '../utils/logger.js';
 import { MCPError } from '../utils/errors.js';
+import { IMCPServer, ITool } from '../types/index.js';
 
 const logger = createMCPLogger('ServerManager');
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+type ServerRegistration = {
+  name: string;
+  server: IMCPServer;
+};
 
 export class ServerManager {
-  private servers: Map<string, MCPServer> = new Map();
+  private servers: Map<string, IMCPServer> = new Map();
   private static instance: ServerManager;
 
   private constructor() {}
@@ -23,93 +22,35 @@ export class ServerManager {
     return ServerManager.instance;
   }
 
-  public async discoverAndStartServers(): Promise<void> {
-    const serversPath = path.resolve(__dirname);
-    logger.info(`Discovering servers in: ${serversPath}`);
-
-    try {
-      const serverDirs = await fs.readdir(serversPath, { withFileTypes: true });
-
-      for (const dirent of serverDirs) {
-        if (dirent.isDirectory()) {
-          const serverName = dirent.name;
-          const serverPath = path.join(serversPath, serverName);
-          await this.loadAndStartServer(serverName, serverPath);
-        }
+  public async registerAndStartServers(registrations: ServerRegistration[]): Promise<void> {
+    logger.info(`Registering and starting ${registrations.length} servers...`);
+    for (const reg of registrations) {
+      try {
+        await this.startServer(reg.name, reg.server);
+      } catch (error) {
+        logger.error(`Failed to start server '${reg.name}'`, error);
+        // Decide if one failure should stop the whole process. For now, we continue.
       }
-    } catch (error) {
-        logger.error('Failed to discover or start servers', error);
-        throw MCPError.initializationError('服务器发现或启动失败', error);
     }
   }
 
-  private async loadAndStartServer(name: string, serverPath: string): Promise<void> {
-    try {
-      logger.info(`Loading server '${name}' from ${serverPath}`);
-      
-      // 确定服务器配置和文件扩展名
-      const isProduction = process.env['NODE_ENV'] === 'production';
-      const ext = isProduction ? '.js' : '.ts';
-      
-      // 构建服务器模块路径
-      const serverModulePath = path.join(serverPath, `mcp-server${ext}`);
-      
-      // 动态导入服务器模块
-      const serverModule = await import(serverModulePath);
-      const ServerClass = serverModule.MCPServer || serverModule.default;
-      
-      if (!ServerClass) {
-        throw new Error(`No server class found in ${serverModulePath}`);
-      }
-
-      const serverOptions = {
-        port: isProduction ? 4001 : 3001,
-        host: isProduction ? '0.0.0.0' : 'localhost'
-      };
-
-      const tools = await this.loadTools(serverPath, ext);
-
-      // 创建服务器实例
-      const serverInstance = new ServerClass(serverOptions, tools);
-      
-      logger.info(`Starting server '${name}' on ${serverOptions.host}:${serverOptions.port}`);
-      await serverInstance.start();
-
-      this.servers.set(name, serverInstance);
-      logger.info(`Successfully started server '${name}' on port ${serverOptions.port}`);
-
-    } catch (error) {
-        logger.error(`Failed to load or start server '${name}'`, { path: serverPath, error });
+  private async startServer(name: string, server: IMCPServer): Promise<void> {
+    if (this.servers.has(name)) {
+      logger.warn(`Server with name '${name}' is already registered. Skipping.`);
+      return;
     }
+
+    logger.info(`Starting server '${name}'...`);
+    await server.start();
+    this.servers.set(name, server);
+    logger.info(`Successfully started and registered server '${name}'.`);
   }
 
-  private async loadTools(serverPath: string, ext: string): Promise<(new () => any)[]> {
-    const toolFiles = await fs.readdir(serverPath);
-    const toolClasses: (new () => any)[] = [];
-
-    for (const file of toolFiles) {
-      if (file.endsWith(`.tool${ext}`)) {
-        const toolPath = path.join(serverPath, file);
-        try {
-          const toolModule = await import(toolPath);
-          const ToolClass = toolModule.default || Object.values(toolModule)[0];
-          if (typeof ToolClass === 'function') {
-            toolClasses.push(ToolClass);
-            logger.info(`Loaded tool from ${file}`);
-          }
-        } catch (error) {
-          logger.error(`Failed to load tool from ${toolPath}`, error);
-        }
-      }
-    }
-    return toolClasses;
-  }
-
-  public getServer(name: string): MCPServer | undefined {
+  public getServer(name: string): IMCPServer | undefined {
     return this.servers.get(name);
   }
 
-  public getAllServers(): MCPServer[] {
+  public getAllServers(): IMCPServer[] {
     return Array.from(this.servers.values());
   }
 
@@ -125,4 +66,4 @@ export class ServerManager {
     }
     this.servers.clear();
   }
-} 
+}

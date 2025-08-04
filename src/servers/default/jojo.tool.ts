@@ -1,5 +1,5 @@
-import { BaseTool } from '../base-tool.js';
-import { ToolParameters, ToolResult } from '../../types/index.js';
+import { BaseTool } from '../../mcp/servers/base-tool.js';
+import { ToolParameters, ToolResult } from '../../mcp/types/index.js';
 
 export default class JoJoTool extends BaseTool {
   private jojoResponses = [

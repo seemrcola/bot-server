@@ -8,63 +8,40 @@ import {
   ChatContext,
   MCPAgentConfig,
   LLMConfig,
-  MCPClientConfig,
-  MCPServerConfig,
-
 } from '../types/index.js';
 import { MCPError } from '../utils/errors.js';
 import { createMCPLogger } from '../utils/logger.js';
 import { LLMNLPProcessor, LLMConfigManager } from '../llm/index.js';
 import { MCPClient } from '../client/mcp-client.js';
 import { ServerManager } from '../servers/manager.js';
-import {
-  createAgentConfigProxy,
-  getConfigCenter,
-} from '../config/index.js';
-
 import { IntentAnalyzer } from './intent-analyzer.js';
 import { TaskExecutor } from './task-executor.js';
 import { TaskType } from '../types/intent.types.js';
-
+import { IMCPServer } from '../types/index.js';
 
 const logger = createMCPLogger('Agent');
 
+type ServerRegistration = {
+  name: string;
+  server: IMCPServer;
+};
+
 export class MCPAgent implements IMCPAgent {
   private initialized = false;
-  private configProxy: ReturnType<typeof createAgentConfigProxy>;
   private agentConfig: MCPAgentConfig;
   private llmNLProcessor: LLMNLPProcessor | undefined;
-
   private serverManager: ServerManager;
   private clients: Map<string, MCPClient> = new Map();
   private toolToClientMap: Map<string, MCPClient> = new Map();
-
-  // 新增：意图分析器和任务执行器
   private intentAnalyzer: IntentAnalyzer | undefined;
   private taskExecutor: TaskExecutor | undefined;
+  private serverRegistrations: ServerRegistration[];
 
-  private unsubscribeConfig: (() => void) | undefined;
-
-  constructor(config?: Partial<MCPAgentConfig>) {
-    this.configProxy = createAgentConfigProxy();
-    if (config) {
-      const configCenter = getConfigCenter();
-      configCenter.updateConfig(config, 'agent-constructor');
-    }
-    this.agentConfig = this.getFullConfig();
+  constructor(config: MCPAgentConfig, serverRegistrations: ServerRegistration[] = []) {
+    this.agentConfig = config;
     this.serverManager = ServerManager.getInstance();
-    this.subscribeToConfigChanges();
+    this.serverRegistrations = serverRegistrations;
   }
-
-  private getFullConfig(): MCPAgentConfig {
-    const configCenter = getConfigCenter();
-    return configCenter.getConfig();
-  }
-
-  private subscribeToConfigChanges(): void {
-    this.unsubscribeConfig = () => {};
-  }
-
   private async cleanup(): Promise<void> {
     for (const client of this.clients.values()) {
       await client.disconnect();
@@ -90,13 +67,11 @@ export class MCPAgent implements IMCPAgent {
         logger.info('MCP Agent is disabled, skipping initialization');
         return;
       }
-      this.agentConfig = this.getFullConfig();
-
+      
       logger.info('Initializing LLM NLP Processor...');
-      const llmConfig = this.configProxy.getConfig().llm;
+      const llmConfig = this.agentConfig.llm;
       if (llmConfig && llmConfig.apiKey) {
-        const configManager = new LLMConfigManager(llmConfig as Partial<LLMConfig>);
-        this.llmNLProcessor = new LLMNLPProcessor(configManager, {
+        this.llmNLProcessor = new LLMNLPProcessor({
           enableContextualAnalysis: true,
           enableSmartCompletion: true,
         });
@@ -109,7 +84,7 @@ export class MCPAgent implements IMCPAgent {
         );
       }
 
-      await this.serverManager.discoverAndStartServers();
+      await this.serverManager.registerAndStartServers(this.serverRegistrations);
       await this.initializeClients();
 
       // 初始化意图分析器和任务执行器

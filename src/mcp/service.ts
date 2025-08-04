@@ -3,19 +3,23 @@
  * 负责管理 MCP 模块的生命周期和提供 Agent 的单例
  */
 import { MCPAgent } from './agent/mcp-agent.js';
-import { MCPAgentConfig } from './types/index.js';
-import { initializeMCPLogger } from './adapters/logger-adapter.js';
-import { createMCPLogger } from './utils/logger.js';
-import { getConfig, validateConfig } from './config/index.js';
+import { MCPAgentConfig, IMCPServer } from './types/index.js';
+import { createMCPLogger, setGlobalLogger } from './utils/logger.js';
+import { ConfigManager } from './config/manager.js';
 
 const logger = createMCPLogger('MCPService');
 
-export class MCPService {
+type ServerRegistration = {
+  name: string;
+  server: IMCPServer;
+};
+class MCPService {
   private static instance: MCPService;
   private agent: MCPAgent | undefined;
+  private configManager: ConfigManager;
 
   private constructor() {
-    // 私有构造函数，确保单例模式
+    this.configManager = ConfigManager.getInstance();
   }
 
   public static getInstance(): MCPService {
@@ -29,23 +33,24 @@ export class MCPService {
    * 启动并初始化整个 MCP 模块
    * @param config 可选的外部配置，将与默认配置合并
    */
-  async start(config?: Partial<MCPAgentConfig>): Promise<void> {
+  async start(
+    config?: Partial<MCPAgentConfig>,
+    serverRegistrations?: ServerRegistration[]
+  ): Promise<void> {
     if (this.agent) {
       logger.info('MCPService has already been started.');
       return;
     }
 
     logger.info('Starting MCPService...');
+    setGlobalLogger(createMCPLogger('MCPModule'));
 
-    // 1. 初始化日志系统
-    // mcp 模块应该可以自给自足，但允许外部注入更强大的 logger
-    // 这里我们先用默认的
-    initializeMCPLogger(createMCPLogger('MCPModule'));
+    if (config) {
+      this.configManager.updateConfig(config);
+    }
 
-    // 2. 初始化和验证配置
-    // 注意：我们将直接使用传入的`config`来实例化Agent，因为它已经包含了所有需要的配置
-    const finalConfig = config || getConfig();
-    const validation = validateConfig(finalConfig);
+    const finalConfig = this.configManager.getConfig();
+    const validation = this.configManager.getHealth();
 
     if (!validation.isValid) {
       logger.warn('MCP configuration has issues.', {
@@ -54,9 +59,8 @@ export class MCPService {
       });
     }
 
-    // 3. 创建和初始化 MCPAgent
     if (finalConfig.enabled) {
-      this.agent = new MCPAgent(finalConfig);
+      this.agent = new MCPAgent(finalConfig, serverRegistrations);
       await this.agent.initialize();
       logger.info('MCPAgent initialized successfully.');
     } else {
@@ -70,7 +74,6 @@ export class MCPService {
    */
   getAgent(): MCPAgent {
     if (!this.agent) {
-      // 考虑到 mcp 可能被禁用，这里做一个优雅的降级处理或明确的错误提示
       throw new Error(
         'MCPAgent is not available. Ensure MCPService is started and MCP is enabled in config.'
       );
@@ -90,3 +93,5 @@ export class MCPService {
     logger.info('MCPService stopped.');
   }
 }
+
+export const mcpService = MCPService.getInstance();

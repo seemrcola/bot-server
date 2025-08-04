@@ -12,28 +12,28 @@ import {
   LLMQuotaExceededError 
 } from './errors.js';
 import { createMCPLogger } from '../utils/logger.js';
-import { createLLMConfigProxy } from '../config/index.js';
+import { configManager } from '../config/manager.js';
 
 const logger = createMCPLogger('LLMService');
 
 export class LLMService implements ILLMService {
-  private configProxy = createLLMConfigProxy();
   private config: LLMConfig;
   private metrics: LLMMetrics;
-  private unsubscribeConfig: (() => void) | undefined;
 
   constructor(config?: LLMConfig) {
-    // 优先使用传入的配置，否则从配置中心获取
-    this.config = config || this.configProxy.getLLMConfig();
+    // 优先使用传入的配置，否则从全局配置管理器获取
+    this.config = config || configManager.getConfig().llm;
+    
+    if (!this.config) {
+        throw new LLMServiceError('LLM configuration is missing.');
+    }
+
     this.metrics = {
       totalRequests: 0,
       successfulRequests: 0,
       failedRequests: 0,
       averageResponseTime: 0
     };
-
-    // 订阅配置变更
-    this.subscribeToConfigChanges();
     
     logger.info('LLM服务已初始化', {
       model: this.config.model,

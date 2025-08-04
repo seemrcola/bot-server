@@ -10,6 +10,17 @@ export interface IMCPAgent {
   initialize(): Promise<void>;
   processMessage(message: string, context: ChatContext): Promise<MCPResponse>;
   shutdown(): Promise<void>;
+  getStatus(): {
+    initialized: boolean;
+    enabled: boolean;
+    clientConnected: boolean;
+    serverRunning: boolean;
+    registeredTools: string[];
+    useLLMProcessor: boolean;
+    llmHealthy?: boolean;
+  };
+  getAllToolKeywords(): string[];
+  processMessageStream(message: string, context: ChatContext): AsyncIterable<string>;
 }
 
 export interface MCPResponse {

@@ -4,7 +4,7 @@
 
 // 核心类
 export { LLMNLPProcessor } from './processor.js';
-export { LLMConfigManager } from './config.js';
+
 export { LLMService } from './service.js';
 
 // 类型

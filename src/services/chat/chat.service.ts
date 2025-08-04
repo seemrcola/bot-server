@@ -6,8 +6,10 @@ import {
 import { StringOutputParser } from "@langchain/core/output_parsers";
 import { BaseMessage } from "@langchain/core/messages";
 import { createLogger } from '../../utils/logger.js';
-import { MCPAgent } from '../../mcp/index.js';
-import { MCPService } from '../../mcp/service.js';
+import { mcp } from '../../mcp/index.js';
+import { IMCPAgent } from "../../mcp/types/index.js";
+
+const { service: mcpService } = mcp;
 
 // 从环境变量中获取LLM配置
 const LLMApiKey = process.env["LLM_API_KEY"];
@@ -18,9 +20,9 @@ const logger = createLogger('ChatService');
 
 class ChatService {
   
-  private getAgent(): MCPAgent | null {
+  private getAgent(): IMCPAgent | null {
     try {
-      return MCPService.getInstance().getAgent();
+      return mcpService.getAgent();
     } catch (error) {
       logger.warn("MCPAgent is not available at this moment.", { reason: error });
       return null;
@@ -83,7 +85,7 @@ class ChatService {
   /**
    * 快速判断消息是否需要工具调用
    */
-  private async checkIfNeedsToolCall(agent: MCPAgent, message: string): Promise<boolean> {
+  private async checkIfNeedsToolCall(agent: IMCPAgent, message: string): Promise<boolean> {
     const status = agent.getStatus();
     const availableTools = status.registeredTools || [];
     const lowerMessage = message.toLowerCase();
@@ -111,10 +113,9 @@ class ChatService {
   /**
    * 创建渐进式工具调用流式输出
    */
-  private async* createProgressiveToolCallStream(agent: MCPAgent, userMessage: string, context: any): AsyncIterable<string> {
+  private async* createProgressiveToolCallStream(agent: IMCPAgent, userMessage: string, context: any): AsyncIterable<string> {
     yield* agent.processMessageStream(userMessage, context);
   }
-
   /**
    * 获取聊天模型配置
    */
