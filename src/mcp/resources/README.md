@@ -56,6 +56,18 @@ export class KnowledgeTool extends BaseTool {
 }
 ```
 
+```
+
+### 架构最佳实践：将资源调用封装在工具中
+
+`ResourceManager` 的设计初衷是为**工具 (Tool)** 提供数据来源，而不是被上层服务（如 `ChatService`）直接调用。
+
+*   **推荐做法 (Correct)**: 在一个专门的工具（如 `KnowledgeTool`）的 `_execute` 方法内部调用 `mcp.resources.getResource()`。这遵循了 ReAct 模式，即 Agent 自主**思考**并**行动**（调用工具）来获取信息。
+
+*   **不推荐的做法 (Incorrect)**: 在 `ChatService` 或其他非工具类中直接调用 `mcp.resources.getResource()`。这会绕过 Agent 的思考决策过程，破坏架构的职责分离和可追溯性。
+
+请始终将 `ResourceManager` 视为**构建工具能力的“弹药库”**，让 Agent 自主决定何时以及如何使用这些弹药。
+
 ## 如何添加并注入一个新的提供者
 
 得益于依赖注入，为 MCP 添加新的资源处理能力变得非常简单，并且**完全无需修改 `mcp` 模块的内部代码**。
