@@ -162,6 +162,18 @@ export interface MCPAgentConfig {
   llm?: LLMConfig;
 }
 
+// ==================== MCP消息相关类型 ====================
+
+export type { 
+  MCPMessage, 
+} from '../agent/message-processor.js';
+
+export { 
+  MCPMessageType, 
+  MessageProcessor 
+} from '../agent/message-processor.js';
+
+
 // ==================== 深度可选配置类型 ====================
 
 export type DeepPartial<T> = {

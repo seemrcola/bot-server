@@ -459,6 +459,10 @@ export class MCPClient extends EventEmitter implements IMCPClient {
     this.connection = undefined;
   }
 
+  getServerUrl(): string {
+    return this.options.serverUrl;
+  }
+
   /**
    * 销毁客户端，清理所有资源
    */

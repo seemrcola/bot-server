@@ -36,8 +36,7 @@ async function startServer() {
   try {
     // 1. Create instances of our application's servers and tools
     const defaultServer = new DefaultMCPServer(
-      { port: 4001, host: 'localhost' },
-      [AshitaNoJoeTool, JoJoTool]
+      { port: 4001, host: 'localhost' }
     );
 
     // 2. Prepare the server registrations to be injected into the MCP module
@@ -55,7 +54,11 @@ async function startServer() {
     // 4. Start the MCP service, injecting servers and resource providers.
     await mcp.service.start(undefined, serverRegistrations, resourceProviders);
 
-    // 5. Start the Express application
+    // 5. Register tools with the appropriate server
+    mcp.service.registerTool(new AshitaNoJoeTool(), 'default-server');
+    mcp.service.registerTool(new JoJoTool(), 'default-server');
+
+    // 6. Start the Express application
     app.listen(config.port, () => {
       const agentStatus = mcp.service.getAgent()?.getStatus();
       logger.info('Server started successfully', {

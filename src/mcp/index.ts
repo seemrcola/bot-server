@@ -7,6 +7,7 @@
  */
 import { mcpService } from './service.js';
 import * as mcpTypes from './types/index.js';
+import * as mcpUtils from './utils/index.js';
 import { promptManager } from './prompts/manager.js';
 import { resourceManager } from './resources/manager.js';
 import type { MCPService } from './service.js';
@@ -19,6 +20,7 @@ const mcp: {
   prompts: PromptManager;
   resources: ResourceManager;
   types: typeof mcpTypes;
+  utils: typeof mcpUtils;
 } = {
   /**
    * MCP 核心服务，负责模块的生命周期和 Agent 的管理。
@@ -53,6 +55,14 @@ const mcp: {
    * let myConfig: mcp.types.MCPAgentConfig;
    */
   types: mcpTypes,
+
+  /**
+   * MCP 模块的公共工具函数。
+   * @example
+   * import { mcp } from './mcp';
+   * const logger = mcp.utils.createMCPLogger('MyModule');
+   */
+  utils: mcpUtils,
 };
 
 export { mcp };

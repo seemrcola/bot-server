@@ -434,4 +434,11 @@ export class TaskExecutor {
     this.config = { ...this.config, ...newConfig };
     logger.info('更新任务执行器配置', newConfig);
   }
+
+  addToolClient(toolName: string, client: MCPClient): void {
+    if (!this.toolToClientMap.has(toolName)) {
+      this.toolToClientMap.set(toolName, client);
+      logger.info(`Tool client added for '${toolName}'.`);
+    }
+  }
 }

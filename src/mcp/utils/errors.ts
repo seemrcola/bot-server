@@ -19,6 +19,7 @@ export enum MCPErrorCode {
   // 工具相关错误
   TOOL_NOT_FOUND = 'TOOL_NOT_FOUND',
   TOOL_EXECUTION_FAILED = 'TOOL_EXECUTION_FAILED',
+  SERVER_NOT_FOUND = 'SERVER_NOT_FOUND',
 
   // NLP 相关错误
   NLP_PROCESSING_FAILED = 'NLP_PROCESSING_FAILED',
@@ -74,6 +75,13 @@ export class MCPError extends Error {
    */
   static toolExecutionError(toolName: string, error: any): MCPError {
     return new MCPError(MCPErrorCode.TOOL_EXECUTION_FAILED, `工具 '${toolName}' 执行失败`, error);
+  }
+
+  /**
+   * 服务器未找到错误
+   */
+  static serverNotFound(serverName: string): MCPError {
+    return new MCPError(MCPErrorCode.SERVER_NOT_FOUND, `Server '${serverName}' not found`);
   }
 
   /**

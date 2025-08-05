@@ -54,6 +54,17 @@ export class ServerManager {
     return Array.from(this.servers.values());
   }
 
+  public registerTool(serverName: string, tool: ITool): void {
+    const server = this.getServer(serverName);
+    if (server) {
+      server.registerTool(tool);
+    } else {
+      throw MCPError.serverNotFound(serverName);
+    }
+  }
+
+
+
   public async stopAllServers(): Promise<void> {
     logger.info('Stopping all managed servers...');
     for (const [name, server] of this.servers) {

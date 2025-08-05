@@ -101,6 +101,19 @@ export class MCPService {
   }
 
   /**
+   * 将网络连接交由 Agent 处理
+   */
+  handleConnection(connection: any): void {
+    const agent = this.getAgent();
+    agent.handleConnection(connection);
+  }
+
+  registerTool(tool: any, serverName: string): void {
+    const agent = this.getAgent();
+    agent.registerTool(tool, serverName);
+  }
+
+  /**
    * 停止 MCP 模块并清理资源
    */
   async stop(): Promise<void> {

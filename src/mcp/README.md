@@ -18,9 +18,7 @@ graph TD;
     subgraph "宿主应用 (Host Application)"
         direction LR
         App["Express App (src/index.ts)"]
-        ChatService["Chat Service"]
-        MyServer["MyCoolServer (src/servers/my-cool-server)"]
-        MyTool["MyCoolTool (src/servers/my-cool-server)"]
+        MyTool["MyCoolTool"]
     end
 
     subgraph "MCP 核心模块 (mcp/)"
@@ -31,23 +29,32 @@ graph TD;
         ServerManager["ServerManager"]
         MCPClient["MCPClient"]
     end
+
+    subgraph "应用层服务 (Servers)"
+      direction LR
+      MyServer["DefaultMCPServer"]
+    end
     
-    App -- "1. 实例化 MyCoolServer" --> MyServer
-    MyServer -- "2. 注册 MyCoolTool" --> MyTool
-    App -- "3. 注册服务器" --> MCP
-    MCP -- "4. 启动服务" --> MCPService
-    MCPService -- "5. 启动管理器" --> ServerManager
-    ServerManager -- "6. 启动已注册的 MyCoolServer" --> MyServer
-    ChatService -- "7. 获取 Agent" --> MCP
-    MCP -- "8. 获取实例" --> MCPAgent
-    MCPAgent -- "9. 连接" --> MCPClient
-    MCPClient -- "10. 调用工具" --> MyServer
+    App -- "1. 创建 Server 实例" --> MyServer
+    App -- "2. 启动 MCP 服务, 注入 Server" --> MCPService
+    MCPService -- "3. 启动 Agent" --> MCPAgent
+    MCPAgent -- "4. 启动 Server" --> ServerManager
+    ServerManager -- "5. 启动" --> MyServer
+    
+    App -- "6. 创建 Tool 实例" --> MyTool
+    App -- "7. 注册 Tool" --> MCPService
+    MCPService -- "8. 注册 Tool" --> MCPAgent
+
+    MCPAgent -- "9. 将 Tool 映射到 Client" --> MCPClient
+    MCPClient -- "连接到" --> MyServer
     
     classDef host fill:#FFF0F5,stroke:#DB7093,stroke-width:2px;
     classDef core fill:#E6E6FA,stroke:#9370DB,stroke-width:2px;
+    classDef servers fill:#F0FFF0,stroke:#2E8B57,stroke-width:2px;
 
-    class App,ChatService,MyServer,MyTool host;
+    class App,MyTool host;
     class MCP,MCPService,MCPAgent,ServerManager,MCPClient core;
+    class MyServer servers;
 ```
 
 ## 主要组件
@@ -70,14 +77,14 @@ graph TD;
 *   **`MCPClient` (`client/mcp-client.ts`)**
     *   **职责**: 作为 Agent 的“手臂”，通过 WebSocket 与 `MCPServer` 通信。
 
-*   **`MCPServer` / `BaseTool`**
-    *   **注意**: 这两个组件的**具体实现**现在已经**移出** `mcp` 模块，成为**应用层**的一部分。`mcp` 模块只定义它们的接口 (`IMCPServer`, `ITool`)。
+*   **`MCPServer` / `ITool`**
+    *   **注意**: `MCPServer` 和 `ITool` 的**具体实现**现在已经完全**移出** `mcp` 模块，成为**应用层**的一部分。`mcp` 模块只定义它们的接口 (`IMCPServer`, `ITool`)。这种设计让应用层可以灵活地实现任何类型的工具服务器和工具，而无需改动 `mcp` 核心。
 
 ## 实践指南
 
 ### 1. 初始化和使用
 
-得益于 `mcp` 的统一入口和 `ConfigManager` 的自动化配置，初始化流程非常简洁和清晰。
+重构后的初始化流程更加清晰，并遵循“依赖注入”和“控制反转”的最佳实践。
 
 ```typescript
 // 在你的应用主入口，如 src/index.ts
@@ -85,23 +92,32 @@ graph TD;
 import { mcp } from './mcp/index.js';
 import { DefaultMCPServer } from './servers/default/mcp-server.js';
 import { AshitaNoJoeTool } from './servers/default/ashitano-joe.tool.js';
+import { JoJoTool } from './servers/default/jojo.tool.js';
+import { FileProvider } from './mcp/resources/file-provider.js';
 
 async function startServer() {
-  // 1. 在应用层，创建你的 MCPServer 实例
-  const myServer = new DefaultMCPServer(
-    { port: 4001, host: 'localhost' },
-    [AshitaNoJoeTool] // 将工具注入服务器
+  // 1. 创建你的 MCPServer 实例。它现在只是一个网络层，不关心具体的工具。
+  const defaultServer = new DefaultMCPServer(
+    { port: 4001, host: 'localhost' }
   );
 
   // 2. 准备一个服务器注册对象数组
   const serverRegistrations = [
-    { name: 'default-server', server: myServer },
+    { name: 'default-server', server: defaultServer },
     // 如果有更多服务器，继续在这里添加
   ];
 
-  // 3. 启动 MCP 服务，注入服务器定义
-  // 注意：不再需要手动管理配置，ConfigManager 会自动处理
-  await mcp.service.start(undefined, serverRegistrations);
+  // 3. 准备资源提供者
+  const resourceProviders = [
+    new FileProvider(),
+  ];
+
+  // 4. 启动 MCP 服务，注入服务器和资源提供者
+  await mcp.service.start(undefined, serverRegistrations, resourceProviders);
+
+  // 5. 在 MCP 服务启动后，动态注册你的工具
+  mcp.service.registerTool(new AshitaNoJoeTool(), 'default-server');
+  mcp.service.registerTool(new JoJoTool(), 'default-server');
 
   // ... 启动你的 Express 或其他应用
 }
@@ -109,106 +125,70 @@ async function startServer() {
 startServer();
 ```
 
-在需要使用 Agent 的地方（例如 `ChatService`），通过 `mcp` 入口获取服务和类型：
+### 2. 如何添加一个新工具
 
-```typescript
-// 在 src/services/chat/chat.service.ts
+**重构后，添加新工具的流程变得极其简单，你不再需要为工具创建或寻找一个“宿主服务器”。**
 
-import { mcp } from '../../mcp/index.js';
-import type { IMCPAgent } from '../../mcp/types/index.js';
+**步骤一：在应用层创建工具类**
 
-class ChatService {
-  private getAgent(): IMCPAgent | null {
-    try {
-      return mcp.service.getAgent();
-    } catch (error) {
-      return null;
-    }
-  }
-  
-  public async handleMessage(message: string) {
-    const agent = this.getAgent();
-    if (agent) {
-       // 使用 agent ...
-    }
-  }
-}
-```
-
-### 2. 如何添加一个新服务器和新工具
-
-**重构后，`mcp` 模块实现了真正的控制反转 (IoC)。添加新功能不再需要修改 `mcp` 内部的任何代码。**
-
-**步骤一：在应用层创建工具**
-
-在项目根目录的 `src/tools/` (或任何你喜欢的地方) 创建你的工具文件。
+这和以前一样，你需要创建一个类来实现 `ITool` 接口。
 
 ```typescript
 // src/tools/weather.tool.ts
 
-import { BaseTool } from '../mcp/servers/base-tool.js';
-import { ToolParameters, ToolResult } from '../mcp/types/index.js';
+import type { ITool, ToolInfo, ToolParameters, ToolResult } from '../mcp/types/index.js';
 
-export class WeatherTool extends BaseTool {
-  constructor() {
-    super(
-      'get_weather',
-      '获取指定城市的实时天气信息',
-      { /* ... parameters ... */ },
-      ['天气', 'weather']
-    );
+export class WeatherTool implements ITool {
+  public readonly name = 'get_weather';
+
+  getInfo(): ToolInfo {
+    return {
+      name: this.name,
+      description: '获取指定城市的实时天气信息。',
+      parameters: {
+        city: {
+          type: 'string',
+          description: '城市名称，例如 "北京"',
+          required: true,
+        },
+      },
+    };
   }
 
-  protected async _execute(params: ToolParameters): Promise<ToolResult> {
+  async execute(params: ToolParameters): Promise<ToolResult> {
     const { city } = params;
+    if (!city) {
+      return { success: false, error: '缺少城市参数' };
+    }
     const weatherData = `城市 ${city} 的天气是晴朗，25摄氏度。`;
     return { success: true, data: weatherData };
   }
 }
 ```
 
-**步骤二：在应用层创建服务器来托管工具**
+**步骤二：在主入口注册新工具**
 
-在 `src/servers/` 目录下创建一个新的服务器文件。
-
-```typescript
-// src/servers/weather-server.ts
-
-import { DefaultMCPServer } from './default/mcp-server.js'; // 可以复用默认实现
-import { WeatherTool } from '../tools/weather.tool.js';
-
-export const weatherServer = new DefaultMCPServer(
-  { port: 4002, host: 'localhost' },
-  [WeatherTool] // 托管新的天气工具
-);
-```
-
-**步骤三：在主入口注册新服务器**
-
-打开 `src/index.ts`，将你的新服务器实例添加到 `serverRegistrations` 数组中。
+打开 `src/index.ts`，在 `mcp.service.start()` 调用之后，添加一行代码来注册你的新工具实例。
 
 ```typescript
 // src/index.ts
 
-import { mcp } from './mcp/index.js';
-import { defaultServer } from './servers/default-server.js'; // 假设你已导出
-import { weatherServer } from './servers/weather-server.js';
+// ... (其他 imports)
+import { WeatherTool } from './tools/weather.tool.js';
 
 async function startServer() {
-  const serverRegistrations = [
-    { name: 'default-server', server: defaultServer },
-    { name: 'weather-server', server: weatherServer }, // <-- 在这里注册
-  ];
+  // ... (mcp.service.start() 调用)
 
-  await mcp.service.start(undefined, serverRegistrations);
-  
-  // ...
+  // 注册你的新工具
+  mcp.service.registerTool(new WeatherTool(), 'default-server');
+
+  // ... (启动 Express 应用)
 }
 ```
 
 **完成！**
 
-你的新服务器和新工具现在已经完全集成到系统中了。这种基于依赖注入的架构使得扩展变得非常灵活和清晰。
+你的新工具现在已经完全集成到系统中了。`MCPAgent` 会自动处理工具的发现和调用，将其路由到正确的 `DefaultMCPServer` 实例。这种架构极大地降低了扩展的复杂性。
 
 ### 3. Prompt Management (提示词管理)
 

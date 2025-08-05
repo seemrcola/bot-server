@@ -18,6 +18,12 @@ export type {
   ToolConfig,
   ToolParameterSchema,
   ToolsConfig,
+  MCPMessage,
+} from './agent.types.js';
+
+export {
+  MCPMessageType,
+  MessageProcessor,
 } from './agent.types.js';
 
 // Client types

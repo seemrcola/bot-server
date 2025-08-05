@@ -12,10 +12,8 @@ export type { ITool, ToolResult, ToolParameters, ToolInfo } from './agent.types.
 export interface IMCPServer {
   start(): Promise<void>;
   stop(): Promise<void>;
+  getOptions(): any;
   registerTool(tool: ITool): void;
-  unregisterTool(toolName: string): void;
-  getRegisteredTools(): ToolInfo[];
-  getOptions(): any; // 添加 getOptions 方法
 }
 
 // ==================== 服务端配置 ====================

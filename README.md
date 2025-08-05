@@ -73,7 +73,7 @@ pnpm build
 pnpm start
 ```
 
-服务启动后，默认监听在 `http://localhost:3001` (端口可在 `src/config/index.js` 中修改)。
+服务启动后，默认监听在 `http://localhost:3000` (端口可在 `src/config/index.ts` 中修改)。
 
 ## 📜 可用的 NPM 脚本
 

@@ -7,7 +7,10 @@ import {
   MCPResponse,
   ChatContext,
   MCPAgentConfig,
-
+  MCPMessage,
+  MCPMessageType,
+  MessageProcessor,
+  ITool,
 } from '../types/index.js';
 import { MCPError } from '../utils/errors.js';
 import { createMCPLogger } from '../utils/logger.js';
@@ -18,6 +21,7 @@ import { IntentAnalyzer } from './intent-analyzer.js';
 import { TaskExecutor } from './task-executor.js';
 import { TaskType } from '../types/intent.types.js';
 import { IMCPServer } from '../types/index.js';
+import { WebSocket } from 'ws';
 
 const logger = createMCPLogger('Agent');
 
@@ -27,21 +31,24 @@ type ServerRegistration = {
 };
 
 export class MCPAgent implements IMCPAgent {
-  private initialized = false;
-  private agentConfig: MCPAgentConfig;
-  private llmNLProcessor: LLMNLPProcessor | undefined;
-  private serverManager: ServerManager;
-  private clients: Map<string, MCPClient> = new Map();
-  private toolToClientMap: Map<string, MCPClient> = new Map();
-  private intentAnalyzer: IntentAnalyzer | undefined;
-  private taskExecutor: TaskExecutor | undefined;
-  private serverRegistrations: ServerRegistration[];
+  private initialized = false;                                // 是否初始化完成
+  private agentConfig: MCPAgentConfig;                        // 代理配置
+  private llmNLProcessor: LLMNLPProcessor | undefined;        // 自然语言处理
+  private serverManager: ServerManager;                       // 服务管理器
+  private clients: Map<string, MCPClient> = new Map();        // 客户端
+  private toolToClientMap: Map<string, MCPClient> = new Map();// 工具到客户端的映射
+  private intentAnalyzer: IntentAnalyzer | undefined;         // 意图分析器
+  private taskExecutor: TaskExecutor | undefined;             // 任务执行器
+  private serverRegistrations: ServerRegistration[];          // 服务注册
+  private messageProcessor: typeof MessageProcessor;          // 消息处理器
 
   constructor(config: MCPAgentConfig, serverRegistrations: ServerRegistration[] = []) {
     this.agentConfig = config;
     this.serverManager = ServerManager.getInstance();
     this.serverRegistrations = serverRegistrations;
+    this.messageProcessor = MessageProcessor;
   }
+
   private async cleanup(): Promise<void> {
     for (const client of this.clients.values()) {
       await client.disconnect();
@@ -492,8 +499,119 @@ ${context.history && context.history.length > 0 ?
 
 
 
+  // ... (existing methods) ...
+
+  /**
+   * 处理来自外部服务器的新WebSocket连接
+   * @param connection WebSocket 连接实例
+   * @param serverName 服务器的可选名称
+   */
+  public handleConnection(connection: WebSocket, serverName?: string): void {
+    const connectionId = serverName || `client-${Date.now()}`;
+    logger.info(`Handling new external connection: ${connectionId}`);
+
+    connection.on('message', async (message: Buffer) => {
+      let parsedMessage: MCPMessage;
+      try {
+        parsedMessage = JSON.parse(message.toString());
+        if (!this.messageProcessor.validateMessage(parsedMessage)) {
+          throw new Error('Invalid message format');
+        }
+      } catch (error) {
+        logger.error('Failed to parse message or invalid format', { error, connectionId });
+        const errorMsg = this.messageProcessor.createErrorMessage(MCPError.parameterError('Invalid JSON format'), 'unknown');
+        this.sendMessage(connection, errorMsg);
+        return;
+      }
+
+      try {
+        switch (parsedMessage.type) {
+          case MCPMessageType.LIST_TOOLS:
+            const tools = Array.from(this.toolToClientMap.keys()).map(name => {
+              const client = this.toolToClientMap.get(name);
+              const toolInfo = client?.getToolInfo(name);
+              return {
+                name,
+                description: toolInfo?.description || '',
+                parameters: toolInfo?.parameters,
+              };
+            });
+            const toolsListMsg = this.messageProcessor.createToolsListMessage(tools, parsedMessage.id);
+            this.sendMessage(connection, toolsListMsg);
+            break;
+
+          case MCPMessageType.TOOL_CALL:
+            const { toolName, parameters } = parsedMessage.payload;
+            const client = this.getClientForTool(toolName);
+            if (client) {
+              const result = await client.callTool(toolName, parameters);
+              const resultMsg = this.messageProcessor.createToolResultMessage(toolName, result, parsedMessage.id);
+              this.sendMessage(connection, resultMsg);
+            } else {
+              throw MCPError.toolNotFound(toolName);
+            }
+            break;
+            
+          default:
+            logger.warn(`Unhandled message type from ${connectionId}: ${parsedMessage.type}`);
+        }
+      } catch (error) {
+        logger.error('Error handling message', { error, connectionId });
+        const errorMsg = this.messageProcessor.createErrorMessage(error, parsedMessage.id);
+        this.sendMessage(connection, errorMsg);
+      }
+    });
+
+    connection.on('close', () => {
+      logger.info(`Connection closed: ${connectionId}`);
+    });
+
+    connection.on('error', (error: Error) => {
+      logger.error('Connection error', { error, connectionId });
+    });
+  }
+
+  private sendMessage(connection: WebSocket, message: MCPMessage): void {
+    if (connection.readyState === connection.OPEN) {
+      connection.send(JSON.stringify(message));
+    } else {
+      logger.warn('Cannot send message, connection is not open.');
+    }
+  }
+
   private getClientForTool(toolName: string): MCPClient | undefined {
+  // ... (rest of the file)
+
     return this.toolToClientMap.get(toolName);
+  }
+
+  registerTool(tool: ITool, serverName: string): void {
+    // 1. Register tool with the server manager
+    this.serverManager.registerTool(serverName, tool);
+
+    // 2. Find the client associated with the server
+    const server = this.serverManager.getServer(serverName);
+    const serverOptions = server?.getOptions();
+    const serverUrl = `ws://${serverOptions.host}:${serverOptions.port}`;
+    
+    let clientToUpdate: MCPClient | undefined;
+    for (const client of this.clients.values()) {
+      if (client.getServerUrl() === serverUrl) {
+        clientToUpdate = client;
+        break;
+      }
+    }
+    
+    // 3. Update the agent's internal mappings
+    if (clientToUpdate) {
+      this.toolToClientMap.set(tool.name, clientToUpdate);
+      if (this.taskExecutor) {
+        this.taskExecutor.addToolClient(tool.name, clientToUpdate);
+      }
+      logger.info(`Tool '${tool.name}' is now mapped to client for server '${serverName}'.`);
+    } else {
+      logger.warn(`Could not find a client for server '${serverName}' to map tool '${tool.name}'.`);
+    }
   }
 
   destroy(): void {
