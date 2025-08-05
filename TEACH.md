@@ -25,10 +25,10 @@ graph LR
         TOOLS["🛠️ Tools<br/>- read_file()<br/>- search_web()<br/>- ..."]
     end
     
-    AGENT -- "1. 寻求规划" --> LLM
-    LLM -- "2. 返回计划" --> AGENT
-    AGENT -- "3. 执行动作" --> TOOLS
-    TOOLS -- "4. 返回结果" --> AGENT
+    AGENT -- "寻求规划" --> LLM
+    LLM -- "返回计划" --> AGENT
+    AGENT -- "执行动作" --> TOOLS
+    TOOLS -- "返回结果" --> AGENT
 ```
 
 ### 从 System Prompt 开始  
