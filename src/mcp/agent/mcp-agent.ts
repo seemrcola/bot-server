@@ -401,9 +401,11 @@ ${context.history && context.history.length > 0 ?
   }
 
   private async initializeClients(): Promise<void> {
+    // 获取到所有服务器
     const servers = this.serverManager.getAllServers();
     logger.info(`Initializing clients for ${servers.length} servers...`);
 
+    // 每一个服务器都创建一个客户端（客服端和服务端是一一对应的） 并连接到服务器
     for (const server of servers) {
       const serverOptions = server.getOptions();
       const serverUrl = `ws://${serverOptions.host}:${serverOptions.port}`;

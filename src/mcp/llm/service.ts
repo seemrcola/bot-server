@@ -17,8 +17,8 @@ import { configManager } from '../config/manager.js';
 const logger = createMCPLogger('LLMService');
 
 export class LLMService implements ILLMService {
-  private config: LLMConfig;
-  private metrics: LLMMetrics;
+  private config: LLMConfig;    // LLM 配置
+  private metrics: LLMMetrics;  // LLM 指标
 
   constructor(config?: LLMConfig) {
     // 优先使用传入的配置，否则从全局配置管理器获取
@@ -32,10 +32,10 @@ export class LLMService implements ILLMService {
     this.config = llmConfig;
 
     this.metrics = {
-      totalRequests: 0,
-      successfulRequests: 0,
-      failedRequests: 0,
-      averageResponseTime: 0
+      totalRequests: 0,        // 总请求数
+      successfulRequests: 0,   // 成功请求数
+      failedRequests: 0,       // 失败请求数
+      averageResponseTime: 0   // 平均响应时间
     };
     
     logger.info('LLM服务已初始化', {
@@ -139,52 +139,6 @@ export class LLMService implements ILLMService {
        logger.error('Error calling LLM API', { error });
        throw this.handleError(error);
     }
-  }
-
-  /**
-   * 调用 DeepSeek API
-   */
-  private async callDeepSeek(prompt: string, options?: any): Promise<string> {
-    // 简化实现 - 在实际项目中需要集成真实的 DeepSeek SDK
-    logger.debug('Calling DeepSeek API (mock implementation)');
-    
-    // 模拟API调用
-    await this.simulateAPICall();
-    
-    return `DeepSeek模拟响应: ${prompt.substring(0, 50)}...`;
-  }
-
-  /**
-   * 调用 Anthropic API
-   */
-  private async callAnthropic(prompt: string, options?: any): Promise<string> {
-    // 简化实现 - 在实际项目中需要集成真实的 Anthropic SDK
-    logger.debug('Calling Anthropic API (mock implementation)');
-    
-    // 模拟API调用
-    await this.simulateAPICall();
-    
-    return `Anthropic模拟响应: ${prompt.substring(0, 50)}...`;
-  }
-
-  /**
-   * 调用本地模型
-   */
-  private async callLocal(prompt: string, options?: any): Promise<string> {
-    logger.debug('Calling local model (mock implementation)');
-    
-    // 模拟本地模型调用
-    await this.simulateAPICall();
-    
-    return `本地模型模拟响应: ${prompt.substring(0, 50)}...`;
-  }
-
-  /**
-   * 模拟API调用延迟
-   */
-  private async simulateAPICall(): Promise<void> {
-    const delay = Math.random() * 1000 + 500; // 500-1500ms
-    await new Promise(resolve => setTimeout(resolve, delay));
   }
 
   /**

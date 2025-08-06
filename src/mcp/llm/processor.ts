@@ -40,7 +40,7 @@ export class LLMNLPProcessor implements INLProcessor {
   };
 
   constructor(options: LLMNLPProcessorOptions = {}) {
-    // 从全局配置管理器中获取 LLM 配置
+    // 初始化LLM服务
     this.llmService = new LLMService();
     
     this.options = {
