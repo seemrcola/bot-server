@@ -48,6 +48,8 @@ export interface SubTask {
   dependencies?: string[];
   /** 任务的预期输出类型 */
   expectedOutputType?: 'text' | 'json' | 'mixed';
+  /** 工具调用所需的参数 */
+  parameters?: Record<string, any>;
 }
 
 /**

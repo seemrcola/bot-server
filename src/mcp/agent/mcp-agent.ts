@@ -11,6 +11,8 @@ import {
   MCPMessageType,
   MessageProcessor,
   ITool,
+  SubTask,
+  TaskPriority,
 } from '../types/index.js';
 import { MCPError } from '../utils/errors.js';
 import { createMCPLogger } from '../utils/logger.js';
@@ -37,6 +39,7 @@ export class MCPAgent implements IMCPAgent {
   private serverManager: ServerManager;                       // 服务管理器
   private clients: Map<string, MCPClient> = new Map();        // 客户端
   private toolToClientMap: Map<string, MCPClient> = new Map();// 工具到客户端的映射
+  private toolMap: Map<string, ITool> = new Map();              // 工具名称到工具实例的直接映射
   private intentAnalyzer: IntentAnalyzer | undefined;         // 意图分析器
   private taskExecutor: TaskExecutor | undefined;             // 任务执行器
   private serverRegistrations: ServerRegistration[];          // 服务注册
@@ -67,6 +70,11 @@ export class MCPAgent implements IMCPAgent {
     return this.agentConfig;
   }
 
+  /**
+   * 初始化 MCP 代理
+   * @returns 
+   * @description 初始化 MCP 代理，包括初始化 LLM NLP 处理器、注册并启动服务器、初始化客户端、初始化意图分析器和任务执行器
+   */
   async initialize(): Promise<void> {
     try {
       logger.info('Initializing MCP Agent...');
@@ -75,13 +83,16 @@ export class MCPAgent implements IMCPAgent {
         return;
       }
       
+      // [第一步] 初始化LLM NLP 处理器
       logger.info('Initializing LLM NLP Processor...');
       const llmConfig = this.agentConfig.llm;
       if (llmConfig && llmConfig.apiKey) {
+        // 初始化LLM NLP 处理器
         this.llmNLProcessor = new LLMNLPProcessor({
-          enableContextualAnalysis: true,
-          enableSmartCompletion: true,
+          enableContextualAnalysis: true, // 是否启用上下文分析
+          enableSmartCompletion: true,    // 是否启用智能补全
         });
+        // 设置置信度阈值
         this.llmNLProcessor?.setConfidenceThreshold(
           this.agentConfig.nlp?.confidenceThreshold || 0.7
         );
@@ -91,10 +102,12 @@ export class MCPAgent implements IMCPAgent {
         );
       }
 
+      // [第二步] 注册并启动服务器
       await this.serverManager.registerAndStartServers(this.serverRegistrations);
+      // [第三步] 初始化客户端
       await this.initializeClients();
 
-      // 初始化意图分析器和任务执行器
+      // [第四步] 初始化意图分析器和任务执行器
       await this.initializeIntentComponents();
 
       this.initialized = true;
@@ -113,11 +126,11 @@ export class MCPAgent implements IMCPAgent {
     context: ChatContext
   ): AsyncIterable<string> {
     if (
-      !this.initialized ||
-      !this.agentConfig.enabled ||
-      !this.llmNLProcessor ||
-      !this.intentAnalyzer ||
-      !this.taskExecutor
+      !this.initialized ||               // 是否初始化完成
+      !this.agentConfig.enabled ||       // 是否启用
+      !this.llmNLProcessor ||            // 是否初始化LLM NLP 处理器
+      !this.intentAnalyzer ||            // 是否初始化意图分析器
+      !this.taskExecutor                 // 是否初始化任务执行器
     ) {
       yield message;
       return;
@@ -126,7 +139,9 @@ export class MCPAgent implements IMCPAgent {
     try {
       // 阶段1：开始处理
       yield "🤔 正在分析您的请求...\n\n";
-      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // 象征性等待50ms
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       // 阶段2：意图分析
       yield "🔍 正在进行意图分析...\n";
@@ -363,14 +378,6 @@ ${context.history && context.history.length > 0 ?
     return await this.llmNLProcessor!.generateText(prompt);
   }
 
-
-
-
-
-
-
-
-
   private getToolInfo(toolName: string): any | undefined {
     const client = this.getClientForTool(toolName);
     return client?.getToolInfo(toolName);
@@ -542,12 +549,21 @@ ${context.history && context.history.length > 0 ?
 
           case MCPMessageType.TOOL_CALL:
             const { toolName, parameters } = parsedMessage.payload;
-            const client = this.getClientForTool(toolName);
-            if (client) {
-              const result = await client.callTool(toolName, parameters);
-              const resultMsg = this.messageProcessor.createToolResultMessage(toolName, result, parsedMessage.id);
+            
+            // 从内部工具映射中直接查找并执行工具
+            const tool = this.toolMap.get(toolName);
+            
+            if (tool) {
+              logger.info(`Executing tool '${toolName}' directly via handleConnection.`);
+              const result = await tool._call(parameters);
+              const resultMsg = this.messageProcessor.createToolResultMessage(
+                toolName,
+                result,
+                parsedMessage.id
+              );
               this.sendMessage(connection, resultMsg);
             } else {
+              // 如果在内部映射中找不到，则抛出错误
               throw MCPError.toolNotFound(toolName);
             }
             break;
@@ -586,10 +602,13 @@ ${context.history && context.history.length > 0 ?
   }
 
   registerTool(tool: ITool, serverName: string): void {
-    // 1. Register tool with the server manager
+    // 1. 在服务管理器中注册工具
     this.serverManager.registerTool(serverName, tool);
 
-    // 2. Find the client associated with the server
+    // 新增：在 Agent 内部维护一份工具的直接引用
+    this.toolMap.set(tool.name, tool);
+
+    // 2. 找到与服务器关联的客户端
     const server = this.serverManager.getServer(serverName);
     const serverOptions = server?.getOptions();
     const serverUrl = `ws://${serverOptions.host}:${serverOptions.port}`;
@@ -602,12 +621,25 @@ ${context.history && context.history.length > 0 ?
       }
     }
     
-    // 3. Update the agent's internal mappings
+    // 3. 更新 agent 的内部映射
     if (clientToUpdate) {
       this.toolToClientMap.set(tool.name, clientToUpdate);
       if (this.taskExecutor) {
         this.taskExecutor.addToolClient(tool.name, clientToUpdate);
       }
+      
+      // 更新意图分析器中的可用工具列表
+      if (this.intentAnalyzer) {
+        const currentTools = this.intentAnalyzer.getAvailableToolsWithDescriptions();
+        const newToolInfo = { name: tool.name, description: tool.description };
+        
+        // 避免重复添加
+        if (!currentTools.some(t => t.name === newToolInfo.name)) {
+          const updatedTools = [...currentTools, newToolInfo];
+          this.intentAnalyzer.updateAvailableToolsWithDescriptions(updatedTools);
+        }
+      }
+
       logger.info(`Tool '${tool.name}' is now mapped to client for server '${serverName}'.`);
     } else {
       logger.warn(`Could not find a client for server '${serverName}' to map tool '${tool.name}'.`);

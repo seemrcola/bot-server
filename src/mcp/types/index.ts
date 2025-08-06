@@ -54,9 +54,12 @@ export type {
 } from './llm.types.js';
 
 // Intent types
-export type {
+export {
   TaskType,
   TaskPriority,
+} from './intent.types.js';
+
+export type {
   SubTask,
   IntentAnalysisResult as NewIntentAnalysisResult,
   TaskExecutionResult,

@@ -17,19 +17,22 @@ import { configManager } from '../config/manager.js';
 const logger = createMCPLogger('LLMNLPProcessor');
 
 export interface LLMNLPProcessorOptions {
-  enableContextualAnalysis?: boolean;
-  enableSmartCompletion?: boolean;
-  enableLearning?: boolean;
-  enableFallback?: boolean;
-  maxContextMessages?: number;
-  cacheResults?: boolean;
+  enableContextualAnalysis?: boolean;    // 是否启用上下文分析
+  enableSmartCompletion?: boolean;       // 是否启用智能补全
+  enableLearning?: boolean;              // 是否启用学习
+  enableFallback?: boolean;              // 是否启用备用
+  maxContextMessages?: number;           // 最大上下文消息数
+  cacheResults?: boolean;                // 是否缓存结果
 }
 
+/**
+ * @description 简化的 LLM NLP 处理器，用于分析用户消息并返回意图分析结果
+ */
 export class LLMNLPProcessor implements INLProcessor {
-  private llmService: LLMService;
-  private options: Required<LLMNLPProcessorOptions>;
-  private confidenceThreshold: number = 0.7;
-  private processingStats = {
+  private llmService: LLMService;                          // LLM 服务
+  private options: Required<LLMNLPProcessorOptions>;       // 处理器选项    
+  private confidenceThreshold: number = 0.7;               // 置信度阈值
+  private processingStats = {                              // 处理统计信息
     totalRequests: 0,
     successfulRequests: 0,
     failedRequests: 0,
@@ -37,15 +40,16 @@ export class LLMNLPProcessor implements INLProcessor {
   };
 
   constructor(options: LLMNLPProcessorOptions = {}) {
-    this.llmService = new LLMService(); // LLMService now gets config from the global manager
+    // 从全局配置管理器中获取 LLM 配置
+    this.llmService = new LLMService();
     
     this.options = {
-      enableContextualAnalysis: options.enableContextualAnalysis ?? true,
-      enableSmartCompletion: options.enableSmartCompletion ?? true,
-      enableLearning: options.enableLearning ?? false,
-      enableFallback: options.enableFallback ?? true,
-      maxContextMessages: options.maxContextMessages ?? 10,
-      cacheResults: options.cacheResults ?? true
+      enableContextualAnalysis: options.enableContextualAnalysis ?? true, // 是否启用上下文分析  
+      enableSmartCompletion: options.enableSmartCompletion ?? true,       // 是否启用智能补全
+      enableLearning: options.enableLearning ?? false,                    // 是否启用学习 启用之后会记录用户交互来优化模型
+      enableFallback: options.enableFallback ?? true,                     // 是否启用备用
+      maxContextMessages: options.maxContextMessages ?? 50,               // 最大上下文消息数
+      cacheResults: options.cacheResults ?? true                          // 是否缓存结果
     };
   }
 

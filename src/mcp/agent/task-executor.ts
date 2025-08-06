@@ -190,7 +190,7 @@ export class TaskExecutor {
   /**
    * 执行单个任务
    */
-  private async executeTask(
+  public async executeTask(
     task: SubTask,
     context?: any
   ): Promise<TaskExecutionResult> {
@@ -287,34 +287,44 @@ export class TaskExecutor {
     const startTime = Date.now();
 
     try {
-      // 临时解决方案：直接调用工具，不通过LLM生成代码
-      if (task.suggestedTools && task.suggestedTools.length > 0) {
-        const toolName = task.suggestedTools[0];
+      if (!task.suggestedTools || task.suggestedTools.length === 0) {
+        throw new Error('没有可用的工具来执行此任务');
+      }
+
+      // 处理任务中可能存在的多个工具
+      const toolPromises = task.suggestedTools.map(toolName => {
         if (!toolName) {
           throw new Error('工具名称为空');
         }
-
         const client = this.toolToClientMap.get(toolName);
-
-        if (client) {
-          logger.info('直接调用工具', { toolName, taskId: task.id });
-          const toolResult = await client.callTool(toolName, {});
-
-          return {
-            taskId: task.id,
-            success: true,
-            result: toolResult,
-            duration: Date.now() - startTime,
-            toolUsed: toolName,
-            timestamp: Date.now()
-          };
-        } else {
+        if (!client) {
           throw new Error(`工具客户端未找到: ${toolName}`);
         }
-      }
+        logger.info('直接调用工具', { 
+          toolName, 
+          taskId: task.id, 
+          parameters: task.parameters 
+        });
+        // 传递从任务中获取的参数，如果不存在则使用空对象
+        return client.callTool(toolName, task.parameters || {});
+      });
 
-      // 如果没有建议工具，抛出错误
-      throw new Error('没有可用的工具来执行此任务');
+      const toolResults = await Promise.all(toolPromises);
+
+      // 合并来自多个工具的结果
+      const combinedResult = toolResults.map((result, index) => ({
+        tool: task.suggestedTools?.[index],
+        result: result,
+      }));
+
+      return {
+        taskId: task.id,
+        success: true,
+        result: combinedResult,
+        duration: Date.now() - startTime,
+        toolUsed: task.suggestedTools.join(', '),
+        timestamp: Date.now()
+      };
     } catch (error) {
       throw MCPError.executionError(`工具任务执行失败: ${task.id}`, error);
     }

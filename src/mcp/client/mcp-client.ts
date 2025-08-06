@@ -49,8 +49,6 @@ export class MCPClient extends EventEmitter implements IMCPClient {
     };
   }
 
-
-
   /**
    * 重新连接
    */

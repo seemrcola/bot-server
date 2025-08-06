@@ -108,6 +108,7 @@ export class IntentAnalyzer {
         type: task.type || TaskType.SIMPLE_CHAT,
         needsTool: Boolean(task.needsTool),
         suggestedTools: Array.isArray(task.suggestedTools) ? task.suggestedTools : [],
+        parameters: task.parameters || {}, // 提取并填充参数
         priority: task.priority || TaskPriority.NORMAL,
         order: task.order || (index + 1),
         canParallel: Boolean(task.canParallel),
@@ -225,6 +226,13 @@ export class IntentAnalyzer {
   updateAvailableToolsWithDescriptions(tools: Array<{name: string, description: string}>): void {
     this.availableTools = tools;
     logger.info('更新可用工具列表（含描述）', { toolsCount: tools.length });
+  }
+
+  /**
+   * 获取可用工具列表（包含描述）
+   */
+  getAvailableToolsWithDescriptions(): Array<{name: string, description: string}> {
+    return this.availableTools;
   }
 
   /**

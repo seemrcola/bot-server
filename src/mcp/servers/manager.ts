@@ -22,6 +22,11 @@ export class ServerManager {
     return ServerManager.instance;
   }
 
+  /**
+   * 注册并启动服务器
+   * @param registrations 服务器注册信息
+   * @returns 
+   */
   public async registerAndStartServers(registrations: ServerRegistration[]): Promise<void> {
     logger.info(`Registering and starting ${registrations.length} servers...`);
     for (const reg of registrations) {
@@ -29,7 +34,6 @@ export class ServerManager {
         await this.startServer(reg.name, reg.server);
       } catch (error) {
         logger.error(`Failed to start server '${reg.name}'`, error);
-        // Decide if one failure should stop the whole process. For now, we continue.
       }
     }
   }
