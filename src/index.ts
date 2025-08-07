@@ -6,12 +6,11 @@ import { config } from './config/index.js';
 import { mainRouter } from './routes/index.js';
 import { handleSuccess, handleError } from './middlewares/response.middleware.js';
 import { createLogger } from './utils/logger.js';
-import { Agent } from './agent/agent.js';
+import { Agent, ExternalServerConfig } from './agent/index.js';
 import { ChatOpenAI } from '@langchain/openai';
 import { tools } from './tools/index.js';
 import { systemPrompt } from './prompts/index.js';
 import { globals } from './globals.js';
-import { ExternalServerConfig } from "./agent/client/manager.js";
 import { startTestExternalServer } from "./external/test-external-server.js";
 
 const app = express();
@@ -52,13 +51,14 @@ async function startServer() {
     const externalServers: ExternalServerConfig[] = [
       { 
         name: 'TestSystemInfoServer', 
+        version: '1.0.0',
         url: `http://${externalServerHost}:${externalServerPort}/mcp` 
       }
     ];
 
     // 3. 创建 Agent 实例并将其存入全局容器
-    // Agent 的构造函数会异步地完成其内部和外部服务的初始化
-    globals.agent = new Agent(llm, tools, externalServers, systemPrompt);
+    // Agent 的构造函数会异步地完成其外部服务的初始化
+    globals.agent = new Agent(llm, externalServers, systemPrompt);
     logger.info('Agent 实例已创建，正在后台进行初始化...');
 
     // 4. 启动主 API 服务器

@@ -8,13 +8,13 @@ const logger = createLogger('MCPClient');
  * 一个基础的 MCP 客户端类，使用 @modelcontextprotocol/sdk。
  * 它可以连接到一个指定的 MCP 服务器。
  */
-export class MCPClient {
+export class MCPHttpClient {
   private client: McpClient;
 
-  constructor() {
+  constructor({ name, version }: { name: string, version: string }) {
     this.client = new McpClient({
-      name: 'agent-internal-mcp-client',
-      version: '1.0.0',
+      name,
+      version,
     });
   }
 

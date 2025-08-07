@@ -16,10 +16,10 @@ export class MCPServer {
   private mcpServer: McpServer;
   private app: express.Express;
 
-  constructor() {
+  constructor({ name, version }: { name: string, version: string }) {
     this.mcpServer = new McpServer({
-      name: 'agent-internal-mcp-server',
-      version: '1.0.0',
+      name,
+      version,
     });
 
     this.app = express();
@@ -38,6 +38,7 @@ export class MCPServer {
 
   private setupRoutes() {
     const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
+    
     this.app.post('/mcp', async (req, res) => {
       const sessionId = req.headers['mcp-session-id'] as string | undefined;
       let transport: StreamableHTTPServerTransport;
@@ -77,15 +78,29 @@ export class MCPServer {
       } 
       // 如果会话ID不存在，且不是初始化请求，则返回400错误
       else {
-        res.status(400).json({ jsonrpc: '2.0', error: { code: -32000, message: 'Bad Request' }, id: null });
+        res
+          .status(400)
+          .json({ 
+            jsonrpc: '2.0', 
+            error: { code: -32000, message: 'Bad Request' }, 
+            id: null 
+          });
       }
     });
 
-    const handleSessionRequest = async (req: express.Request, res: express.Response) => {
+    const handleSessionRequest = async (
+      req: express.Request, 
+      res: express.Response
+    ) => {
+      // 你是谁
       const sessionId = req.headers['mcp-session-id'] as string | undefined;
+      // 我是否认识你
       if (!sessionId || !transports[sessionId]) {
         res.status(400).send('无效或缺失的会话 ID');
-      } else {
+      } 
+      // 如果找到了那就直接处理请求
+      // transport内部自己会处理请求 如果是get请求 会调用handleGetRequest 如果是delete请求 会调用handleDeleteRequest
+      else {
         await transports[sessionId]!.handleRequest(req, res, req.body);
       }
     };

@@ -1,5 +1,5 @@
 import { createLogger } from '../../utils/logger.js';
-import { MCPClient } from './MCPClient.js';
+import { MCPHttpClient } from './MCPClient.js';
 
 const logger = createLogger('ClientManager');
 
@@ -8,6 +8,7 @@ const logger = createLogger('ClientManager');
  */
 export interface ExternalServerConfig {
   name: string;
+  version: string;
   url: string;
 }
 
@@ -15,7 +16,7 @@ export interface ExternalServerConfig {
  * 管理与多个外部 MCP 服务器的连接。
  */
 export class ClientManager {
-  private clients: Map<string, MCPClient> = new Map();
+  private clients: Map<string, MCPHttpClient> = new Map();
   private toolToServerMap: Map<string, string> = new Map(); // K: toolName, V: serverName
 
   constructor() {
@@ -36,13 +37,17 @@ export class ClientManager {
       }
 
       try {
-        const client = new MCPClient();
+        const client = new MCPHttpClient({
+          name: config.name,
+          version: config.version,
+        });
         await client.connect(config.url);
         this.clients.set(config.name, client);
         logger.info(`成功连接到外部服务器: ${config.name}`);
 
         // 发现并注册该服务器的工具
-        const tools = (await client.listTools()) as any[];
+        const result = await client.listTools();
+        const tools = result.tools || [];
         for (const tool of tools) {
           if (tool && tool.name) {
             this.toolToServerMap.set(tool.name, config.name);
@@ -63,8 +68,9 @@ export class ClientManager {
     let allTools: any[] = [];
     for (const client of this.clients.values()) {
       try {
-        const tools = (await client.listTools()) as any[];
-        if (tools) {
+        const result = await client.listTools();
+        const tools = result.tools || [];
+        if (tools.length > 0) {
           allTools = allTools.concat(tools);
         }
       } catch (error) {
