@@ -109,22 +109,8 @@ export class MCPServer {
     this.app.delete('/mcp', handleSessionRequest);
   }
 
-  /**
-   * 注册一系列工具。
-   * @param tools 要注册的工具数组，每个工具需要包含 name, definition, 和 handler。
-   */
-  public registerTools(tools: any[]) {
-    if (!tools) return;
-
-    for (const tool of tools) {
-      const { name, definition, handler } = tool;
-      if (name && definition && handler) {
-        this.mcpServer.registerTool(name, definition as any, handler as any);
-        logger.info(`已注册工具: ${name}`);
-      } else {
-        logger.warn('尝试注册一个无效的工具', name);
-      }
-    }
+  public get mcp(): McpServer {
+    return this.mcpServer;
   }
 
   /**

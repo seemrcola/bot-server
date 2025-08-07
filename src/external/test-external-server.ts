@@ -21,17 +21,12 @@ export function startTestExternalServer(port: number, host: string) {
     }
   );
 
-  // 为这个外部服务定义一个独特的工具
-  const systemInfoTool = {
-    name: 'getSystemInfo',
-    definition: {
-      description: '获取当前服务器的系统信息，例如 Node.js 版本。',
-      inputSchema: z.object({}), // 无输入参数
-      outputSchema: z.object({
-        nodeVersion: z.string(),
-      }),
-    },
-    handler: async () => {
+  // 注册这个工具
+  testServer.mcp.tool(
+    'getSystemInfo',
+    '获取当前服务器的系统信息，例如 Node.js 版本。',
+    {}, // 无输入参数，传入空对象
+    async () => {
       const nodeVersion = process.version;
       logger.info(`外部工具 getSystemInfo 被调用，返回 Node.js 版本: ${nodeVersion}`);
       return {
@@ -44,10 +39,7 @@ export function startTestExternalServer(port: number, host: string) {
         }
       };
     }
-  };
-
-  // 注册这个工具
-  testServer.registerTools([systemInfoTool]);
+  );
 
   // 启动服务器
   testServer.listen(port, host);
