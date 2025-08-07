@@ -5,33 +5,30 @@ import { BaseMessage } from "@langchain/core/messages";
 
 const logger = createLogger('ChatController');
 
-/**
- * 流式聊天处理器
- */
 export async function streamChatHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { messages, sessionId } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      res.status(400).json({ error: 'messages are required in the request body and must be a non-empty array.' });
+      res
+        .status(400)
+        .json({error: 'messages are required in the request body and must be a non-empty array.' });
       return;
     }
     
-    // 设置一个简单的文本流响应头
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.flushHeaders();
 
     logger.info('开始处理流式聊天请求 (raw text stream)', { sessionId });
 
-    // 调用聊天服务
+    // 注意 这里返回的是一个 AsyncIterable<string> 对象
     const stream = await chatService.runChatStream(messages as BaseMessage[], sessionId);
 
-    // 将流式数据直接写入响应，不带任何SSE格式
+    // 注意 这里是一个异步迭代器，会自动处理流式数据 消费上面的 AsyncIterable<string> 对象
     for await (const chunk of stream) {
       res.write(chunk);
     }
 
-    // 结束响应
     res.end();
     
     logger.info('流式聊天请求处理完成', { sessionId });

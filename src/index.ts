@@ -8,7 +8,6 @@ import { handleSuccess, handleError } from './middlewares/response.middleware.js
 import { createLogger } from './utils/logger.js';
 import { Agent, ExternalServerConfig } from './agent/index.js';
 import { ChatOpenAI } from '@langchain/openai';
-import { tools } from './tools/index.js';
 import { systemPrompt } from './prompts/index.js';
 import { globals } from './globals.js';
 import { startTestExternalServer } from "./external/test-external-server.js";
