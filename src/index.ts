@@ -6,7 +6,7 @@ import { mainRouter } from './routes/index.js';
 import { handleSuccess, handleError } from './middlewares/response.middleware.js';
 import { createLogger } from './utils/logger.js';
 import { Agent, ExternalServerConfig } from './agent/index.js';
-import { ChatOpenAI } from '@langchain/openai';
+import { QuietChatOpenAI } from './agent/llm/quiet-openai.js';
 import { systemPrompt } from './prompts/index.js';
 import { globals } from './globals.js';
 import fs from 'fs';
@@ -29,8 +29,8 @@ app.use('/', mainRouter);
 app.use(handleSuccess);
 app.use(handleError);
 
-function createLLM(): ChatOpenAI {
-  return new ChatOpenAI({
+function createLLM(): QuietChatOpenAI {
+  return new QuietChatOpenAI({
     apiKey: process.env['LLM_API_KEY'] || '',
     model: process.env['LLM_MODEL'] || 'deepseek-chat',
     temperature: 0.7,
