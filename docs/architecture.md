@@ -1,6 +1,6 @@
 ## Agent 架构 UML 类图
 
-下图展示了核心类之间的关系与职责边界（Agent、ClientManager、MCP 客户端/服务器、服务与入口等）。
+下图展示了核心类之间的关系与职责边界（Agent、AgentManager、ClientManager、MCP 客户端/服务器、服务与入口等）。
 
 ```mermaid
 classDiagram
@@ -8,15 +8,18 @@ classDiagram
     - llm: BaseLanguageModel
     - systemPrompt: string
     - externalClientManager: ClientManager
-    - allTools: ExternalTool[]
     + ready: Promise<void>
     + languageModel: BaseLanguageModel
     + clientManager: ClientManager
     + systemPromptValue: string
-    + processMessageStream(messages: BaseMessage[], sessionId?): AsyncIterable<string>
-    - _analyzeUserIntent(lastMessage: BaseMessage): ToolCall | null
-    - _executeToolCall(toolCall: ToolCall): AsyncIterable<string>
-    - _executeConventionalCall(messages: BaseMessage[]): AsyncIterable<string>
+    + listTools(): Promise<ExternalTool[]>
+  }
+
+  class AgentManager {
+    - agents: Map<string, Agent>
+    + addAgent(name: string, agent: Agent): void
+    + getAgent(name: string): Agent | undefined
+    + listAgentNames(): string[]
   }
 
   class ReActExecutor {
@@ -48,7 +51,7 @@ classDiagram
   }
 
   class Globals {
-    + agent?: Agent
+    + agentManager?: AgentManager
   }
 
   class MainServer {
@@ -74,22 +77,22 @@ classDiagram
 
   Agent --> ClientManager : uses
   Agent --> BaseLanguageModel : uses
-  Agent o--> ExternalTool : binds tools
   ReActExecutor --> ClientManager : uses
   ReActExecutor --> BaseLanguageModel : uses
   ClientManager --> MCPHttpClient : manages *
   ClientManager o--> ExternalTool : caches *
-  MainServer --> Agent : creates
-  Globals --> Agent : holds
+  MainServer --> AgentManager : creates
+  AgentManager --> Agent : manages *
+  Globals --> AgentManager : holds
   MainServer --> ChatOpenAI : constructs
   MCPServer <.. MainServer : started (test)
   Agent ..> SystemMessage : system prompt
   ChatController ..> ReActExecutor : uses
-  ChatController ..> Agent : reads deps (getters)
+  ChatController ..> AgentManager : selects agent
 ```
 
 说明：
-- 现已由 `ChatController` 直接使用 `ReActExecutor` 驱动“多步多工具”的 ReAct 流程；通过 `globals.agent` 暴露的只读 getter 复用同一 `LLM`/`ClientManager`/`systemPrompt`。
-- `Agent` 仍保留原单步能力与工具绑定逻辑（兼容/参考），但默认接口已切换到 ReAct。
+- `ChatController` 通过 `ChatService` 调用 `AgentManager.getAgent(agentName)` 选择具体 Agent，再用 `ReActExecutor` 驱动 ReAct 流程。
+- `Agent` 负责提供 `LLM`、`ClientManager`、`systemPrompt` 等依赖，不再缓存 `allTools`。
 - `ClientManager` 统一管理多个 MCP 客户端；`MCPServer` 为示例外部工具服务，采用 Streamable HTTP 传输。
 

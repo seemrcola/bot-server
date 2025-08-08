@@ -8,6 +8,7 @@ sequenceDiagram
   participant Controller as "streamChatHandler"
   participant Service as "ChatService"
   participant ReAct as "ReActExecutor"
+  participant AM as "AgentManager"
   participant Agent as "Agent"
   participant LLM as "LLM (ChatOpenAI)"
   participant CM as "ClientManager"
@@ -17,7 +18,9 @@ sequenceDiagram
   Client->>Express: POST /api/chat/stream (messages)
   Express->>Router: route matching
   Router->>Controller: streamChatHandler(req, res)
-  Controller->>Service: runReActStream(messages)
+  Controller->>Service: runReActStream(messages, {agentName})
+  Service->>AM: getAgent(agentName || 'main-agent')
+  AM-->>Service: Agent
   Service->>ReAct: new ReActExecutor({ agent }) & run(messages, {maxSteps})
 
   loop for step in 1..maxSteps
