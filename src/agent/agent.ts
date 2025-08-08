@@ -14,7 +14,7 @@ export class Agent {
   private llm: BaseLanguageModel;
   private systemPrompt: string;
   private externalClientManager: ClientManager;
-  private allTools: ExternalTool[] = [];
+  // 已移除 allTools 缓存，避免状态陈旧与未使用字段
   public readonly ready: Promise<void>;
   private resolveReady!: () => void;
 
@@ -46,12 +46,21 @@ export class Agent {
     return this.systemPrompt;
   }
 
+  // 资源池相关功能已移除
+
+  /**
+   * 按需获取当前可用工具列表（透传自 ClientManager，避免本地缓存陈旧）。
+   */
+  public async listTools(): Promise<ExternalTool[]> {
+    return this.externalClientManager.getAllTools();
+  }
+
   private async initialize(externalServers: ExternalServerConfig[]) {
     try {
       await this.externalClientManager.connect(externalServers);
-      this.allTools = await this.externalClientManager.getAllTools();
+      const tools = await this.externalClientManager.getAllTools();
       logger.info('Agent 初始化完成。');
-      logger.info(`发现了 ${this.allTools.length} 个外部工具。`);
+      logger.info(`发现了 ${tools.length} 个外部工具。`);
       this.resolveReady();
     } catch (error) {
       logger.error('Agent 初始化失败', error);

@@ -134,6 +134,8 @@ Agent/Executor 产出的是“标准 JSON 步骤”。建议在上层（如 Web 
 - 为 LLM/工具调用加超时与有限重试；对 `action_input.parameters` 做基本校验。
 - 使用 `agent.ready` 确保 MCP 工具已完成发现。
 
+
+
 ### 对外 API（简表）
 - `class Agent(llm: BaseLanguageModel, servers: ExternalServerConfig[], systemPrompt: string)`
   - `ready: Promise<void>`: 完成外部服务连接与工具发现

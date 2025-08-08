@@ -141,7 +141,7 @@ export class ReActExecutor {
 
       if (step.action === "tool_call") {
         const toolName = step.action_input?.tool_name;
-        const parameters = step.action_input?.parameters ?? {};
+        const parameters = { ...(step.action_input?.parameters ?? {}) } as Record<string, unknown>;
         if (!toolName) {
           const obs = "缺少 tool_name，无法调用工具。";
           const lastStep = steps[steps.length - 1]!;

@@ -2,12 +2,13 @@ import { Request, Response, NextFunction } from 'express';
 import { chatService } from '../services/chat/chat.service.js';
 import { createLogger } from '../utils/logger.js';
 import { BaseMessage } from "@langchain/core/messages";
+// 资源池相关逻辑已移除
 
 const logger = createLogger('ChatController');
 
 export async function streamChatHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { messages, sessionId } = req.body;
+    const { messages, sessionId, reactVerbose } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       res
@@ -21,14 +22,30 @@ export async function streamChatHandler(req: Request, res: Response, next: NextF
 
     logger.info('开始处理流式聊天请求 (ReAct 模式)', { sessionId });
 
+    // 资源池相关逻辑已移除
+
     // 通过 Service 统一调度（保持分层）
     const stream = await chatService.runReActStream(messages as BaseMessage[], { maxSteps: 8 });
 
-    // 默认采用“友好增强”模式
-    const enhance = createFriendlyEnhancer();
-    for await (const step of stream) {
-      const chunks = enhance(step);
-      for (const c of chunks) res.write(c);
+    if (reactVerbose === true) {
+      // 输出严格的 ReAct JSON 步骤
+      for await (const step of stream) {
+        res.write(step + "\n");
+      }
+    } else {
+      // 仅输出最终答案文本
+      for await (const step of stream) {
+        try {
+          const obj = JSON.parse(step);
+          if (obj?.action === 'final_answer') {
+            const answerVal = obj?.answer;
+            const answer = typeof answerVal === 'string' ? answerVal : JSON.stringify(answerVal);
+            res.write(answer);
+          }
+        } catch {
+          // 忽略解析失败的中间步骤
+        }
+      }
     }
 
     res.end();
@@ -39,49 +56,4 @@ export async function streamChatHandler(req: Request, res: Response, next: NextF
     logger.error('处理流式聊天请求时出错', error);
     next(error);
   }
-}
-
-/**
- * 为 ReAct 流式步骤提供按模式的输出增强，同时在 final 时合成更友好的答案。
- * 使用闭包在多步过程中保留最近的工具观测结果。
- */
-function createFriendlyEnhancer() {
-  const observations: string[] = [];
-
-  function enhanceFinal(answerVal: unknown): string {
-    const answer = typeof answerVal === "string" ? answerVal : JSON.stringify(answerVal);
-    if (observations.length === 0) return answer;
-    // 简单增强：在最终答案后追加结构化小结（可按需定制更复杂的模板）
-    const summary = observations.map((o) => `- ${o}`).join("\n");
-    return `${answer}\n\n—— 信息小结 ——\n${summary}`;
-  }
-
-  return function enhance(stepJson: string): string[] {
-    let obj: any = null;
-    try { obj = JSON.parse(stepJson); } catch { return [stepJson + "\n"]; }
-
-    const action = obj?.action;
-
-    if (action === "tool_call") {
-      if (obj?.observation) observations.push(obj.observation);
-      const tool = obj?.action_input?.tool_name;
-      const prettyArgs = JSON.stringify(obj?.action_input?.parameters ?? {});
-      const lines: string[] = [];
-      lines.push(`正在调用工具: ${tool}，参数: ${prettyArgs}\n`);
-      if (obj?.observation) lines.push(`工具结果: ${obj.observation}\n`);
-      return lines;
-    }
-
-    if (action === "user_input") {
-      return [`需要更多信息：${obj?.thought || "请补充说明"}\n`];
-    }
-
-    if (action === "final_answer") {
-      const text = enhanceFinal(obj?.answer);
-      return [text];
-    }
-
-    // 兜底：保持健壮性
-    return [stepJson + "\n"];
-  };
 }

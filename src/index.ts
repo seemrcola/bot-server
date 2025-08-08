@@ -61,6 +61,8 @@ async function loadAndStartExternalServers(): Promise<ExternalServerConfig[]> {
   return externalServers;
 }
 
+// 资源池相关逻辑已移除
+
 /**
  * 启动 Express 服务并初始化应用服务。
  */
@@ -72,6 +74,8 @@ async function startServer() {
     // 创建 Agent 实例
     globals.agent = new Agent(llm, externalServers, systemPrompt);
     logger.info('Agent 实例已创建，正在后台进行初始化...');
+
+    // 资源池相关逻辑已移除
 
     // 启动主 API 服务器
     app.listen(config.port, () => {
