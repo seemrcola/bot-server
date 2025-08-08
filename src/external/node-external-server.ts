@@ -15,7 +15,7 @@ const logger = createLogger('TestExternalServer');
 export function startTestExternalServer(port: number, host: string) {
   const testServer = new MCPServer(
     {
-      name: 'test-external-server',
+      name: 'node-external-server',
       version: '1.0.0',
     }
   );
@@ -45,3 +45,6 @@ export function startTestExternalServer(port: number, host: string) {
 
   logger.info(`模拟的外部 MCP 服务器已在 http://${host}:${port}/mcp 启动`);
 }
+
+// 统一导出名，便于动态装载器发现启动函数
+export const startExternalServer = startTestExternalServer;

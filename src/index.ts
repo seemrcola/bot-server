@@ -9,7 +9,10 @@ import { Agent, ExternalServerConfig } from './agent/index.js';
 import { ChatOpenAI } from '@langchain/openai';
 import { systemPrompt } from './prompts/index.js';
 import { globals } from './globals.js';
-import { startTestExternalServer } from "./external/test-external-server.js";
+import fs from 'fs';
+import path from 'path';
+import url from 'url';
+import getPort, { portNumbers } from 'get-port';
 
 const app = express();
 const logger = createLogger('MainServer');
@@ -26,48 +29,56 @@ app.use('/', mainRouter);
 app.use(handleSuccess);
 app.use(handleError);
 
+function createLLM(): ChatOpenAI {
+  return new ChatOpenAI({
+    apiKey: process.env['LLM_API_KEY'] || '',
+    model: process.env['LLM_MODEL'] || 'deepseek-chat',
+    temperature: 0.7,
+    streaming: true,
+    configuration: { baseURL: process.env['LLM_BASE_URL'] || '' }
+  });
+}
+
+async function loadAndStartExternalServers(): Promise<ExternalServerConfig[]> {
+  const externalDir = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), './external');
+  const files = fs.readdirSync(externalDir).filter(f => f.endsWith('.ts') || f.endsWith('.js'));
+  const host = 'localhost';
+  const externalServers: ExternalServerConfig[] = [];
+  for (const file of files) {
+    const modPath = path.join(externalDir, file);
+    const mod = await import(url.pathToFileURL(modPath).href);
+    const starter = mod.startExternalServer;
+    if (typeof starter === 'function') {
+      const port = await getPort({ port: portNumbers(3002, 3999) });
+      await starter(port, host);
+      const name = path.parse(file).name;
+      externalServers.push({ name, version: '1.0.0', url: `http://${host}:${port}/mcp` });
+      logger.info('外部 MCP 服务已启动', { name, port });
+    } else {
+      logger.warn(`外部模块 ${file} 未导出可用的启动函数，已跳过`);
+    }
+  }
+  return externalServers;
+}
+
 /**
  * 启动 Express 服务并初始化应用服务。
  */
 async function startServer() {
   try {
-    // 1. 启动模拟的外部 MCP 服务器
-    const externalServerPort = 3002;
-    const externalServerHost = 'localhost';
-    startTestExternalServer(externalServerPort, externalServerHost);
+    const llm = createLLM();
+    const externalServers = await loadAndStartExternalServers();
 
-    // 2. 准备 Agent 的“原料”
-    const llm = new ChatOpenAI({
-      apiKey: process.env['LLM_API_KEY'] || '',
-      model: process.env['LLM_MODEL'] || 'deepseek-chat',
-      temperature: 0.7,
-      streaming: true,
-      configuration: { baseURL: process.env['LLM_BASE_URL'] || '' }
-    });
-
-    // 定义外部服务器列表
-    const externalServers: ExternalServerConfig[] = [
-      { 
-        name: 'TestSystemInfoServer', 
-        version: '1.0.0',
-        url: `http://${externalServerHost}:${externalServerPort}/mcp` 
-      }
-    ];
-
-    // 3. 创建 Agent 实例并将其存入全局容器
-    // Agent 的构造函数会异步地完成其外部服务的初始化
+    // 创建 Agent 实例
     globals.agent = new Agent(llm, externalServers, systemPrompt);
     logger.info('Agent 实例已创建，正在后台进行初始化...');
 
-    // 4. 启动主 API 服务器
+    // 启动主 API 服务器
     app.listen(config.port, () => {
-      logger.info('API 服务器正在监听', {
-        端口: config.port,
-      });
+      logger.info('API 服务器正在监听', { 端口: config.port });
     });
-
   } catch (error) {
-    logger.error("服务启动失败", error);
+    logger.error('服务启动失败', error);
     process.exit(1);
   }
 }
