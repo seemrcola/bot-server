@@ -6,3 +6,4 @@
 export { Agent } from './agent.js';
 export { MCPServer } from './mcp/server/index.js';
 export type { ExternalServerConfig } from './mcp/client/manager.js';
+export { ReActExecutor } from './react/react-executor.js';

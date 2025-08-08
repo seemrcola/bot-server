@@ -9,6 +9,7 @@ const logger = createLogger('Agent');
 
 const BASE_SYSTEM_PROMPT = `
 你是一个乐于助人的 AI 助手。
+回复内容请使用 Markdown 格式。
 `;
 
 export class Agent {
@@ -33,6 +34,18 @@ export class Agent {
     logger.info('Agent 已创建。正在初始化外部服务...');
     this.ready = new Promise<void>((resolve) => { this.resolveReady = resolve; });
     this.initialize(externalServers);
+  }
+
+  public get languageModel(): BaseLanguageModel {
+    return this.llm;
+  }
+
+  public get clientManager(): ClientManager {
+    return this.externalClientManager;
+  }
+
+  public get systemPromptValue(): string {
+    return this.systemPrompt;
   }
 
   private async initialize(externalServers: ExternalServerConfig[]) {
@@ -93,13 +106,20 @@ export class Agent {
     try {
       const toolResult = await this.externalClientManager.callTool(toolCall.name, toolCall.args);
       logger.info(`工具 ${toolCall.name} 返回结果。`);
-      
-      const content = toolResult.content as string;
-      if (typeof content !== 'string') {
-        yield JSON.stringify(content);
-      } 
-      else {
-        yield content;
+
+      // 简化处理：假定工具返回始终符合规范
+      /**
+       * 处理工具返回的文本内容格式如下：
+       * [
+       *   {
+       *     "type": "text",
+       *     "text": "Hello, world!"
+       *   }
+       * ]
+       */
+      const parts = (toolResult as any).content as Array<{ type: string; text: string }>;
+      for (const part of parts) {
+        yield part.text;
       }
     } catch (error) {
       const errorMessage = `工具 \`${toolCall.name}\` 调用失败: ${error instanceof Error ? error.message : String(error)}`;

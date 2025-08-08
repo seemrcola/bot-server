@@ -2,12 +2,14 @@ import { Request, Response, NextFunction } from 'express';
 import { chatService } from '../services/chat/chat.service.js';
 import { createLogger } from '../utils/logger.js';
 import { BaseMessage } from "@langchain/core/messages";
+import { ReActExecutor } from '../agent/index.js';
+import { globals } from '../globals.js';
 
 const logger = createLogger('ChatController');
 
 export async function streamChatHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { messages, sessionId } = req.body;
+    const { messages, sessionId, reactVerbose } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       res
@@ -19,14 +21,52 @@ export async function streamChatHandler(req: Request, res: Response, next: NextF
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.flushHeaders();
 
-    logger.info('开始处理流式聊天请求 (raw text stream)', { sessionId });
+    logger.info('开始处理流式聊天请求 (ReAct 模式)', { sessionId });
 
-    // 注意 这里返回的是一个 AsyncIterable<string> 对象
-    const stream = await chatService.runChatStream(messages as BaseMessage[], sessionId);
+    // 使用 ReAct 执行器替换原先的单步 Agent 逻辑
+    const agent = globals.agent;
+    if (!agent) {
+      res.status(500).end('Agent 未初始化');
+      return;
+    }
 
-    // 注意 这里是一个异步迭代器，会自动处理流式数据 消费上面的 AsyncIterable<string> 对象
-    for await (const chunk of stream) {
-      res.write(chunk);
+    const executor = new ReActExecutor({
+      llm: agent.languageModel,
+      clientManager: agent.clientManager,
+      systemPrompt: agent.systemPromptValue,
+    });
+
+    const stream = executor.run(messages as BaseMessage[], { maxSteps: 8 });
+
+    for await (const step of stream) {
+      // 每一步都是 JSON 字符串
+      if (reactVerbose) {
+        // 兼容：需要完整 ReAct 轨迹时直接透传
+        res.write(step + '\n');
+        continue;
+      }
+
+      // 默认：只向客户端输出最终答案，步骤仅写入服务端日志
+      try {
+        const obj = JSON.parse(step);
+        const action = obj?.action;
+        if (action === 'tool_call') {
+          logger.debug('ReAct step tool_call', { tool: obj?.action_input?.tool_name, params: obj?.action_input?.parameters });
+          continue;
+        }
+        if (action === 'user_input') {
+          logger.debug('ReAct step user_input', { thought: obj?.thought });
+          continue;
+        }
+        if (action === 'final_answer') {
+          const answer: unknown = obj?.answer;
+          const text = typeof answer === 'string' ? answer : JSON.stringify(answer);
+          res.write(text);
+        }
+      } catch {
+        // 若解析失败，降级为直接输出原始文本，避免丢失信息
+        res.write(step + '\n');
+      }
     }
 
     res.end();
