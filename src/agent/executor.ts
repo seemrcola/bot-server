@@ -1,9 +1,11 @@
 import { BaseLanguageModel } from "@langchain/core/language_models/base";
 import { BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { ClientManager } from "../mcp/client/manager.js";
-import { createLogger } from "../utils/logger.js";
+import { ClientManager } from "./mcp/client/manager.js";
+import { createLogger } from "./utils/logger.js";
+import { Agent } from "./agent.js";
 
 const logger = createLogger("ReActExecutor");
+const MAX_STEPS = 8;
 
 export type ReActActionType = "tool_call" | "user_input" | "final_answer";
 
@@ -26,18 +28,20 @@ export class ReActExecutor {
   private readonly llm: BaseLanguageModel;
   private readonly clientManager: ClientManager;
   private readonly systemPrompt: string;
+  private readonly agent: Agent;
 
-  constructor(params: { llm: BaseLanguageModel; clientManager: ClientManager; systemPrompt: string }) {
-    this.llm = params.llm;
-    this.clientManager = params.clientManager;
-    this.systemPrompt = params.systemPrompt;
+  constructor(params: { agent: Agent }) {
+    this.agent = params.agent;
+    this.llm = this.agent.languageModel;
+    this.clientManager = this.agent.clientManager;
+    this.systemPrompt = this.agent.systemPromptValue;
   }
 
   public async *run(
     messages: BaseMessage[],
     options: ReActExecutorOptions = {}
   ): AsyncIterable<string> {
-    const maxSteps = options.maxSteps ?? 8;
+    const maxSteps = options.maxSteps ?? MAX_STEPS;
 
     const userMessage = messages[messages.length - 1];
     if (!userMessage) {
@@ -95,6 +99,12 @@ export class ReActExecutor {
 
       let raw: any;
       try {
+        /**
+         * llm.invoke 的返回值格式如下：
+         * {
+         *   content: string | Array<{ type: string; text: string }>
+         * }
+         */
         raw = await this.llm.invoke(promptMessages);
       } catch (err) {
         const errMsg = `LLM 调用失败: ${err instanceof Error ? err.message : String(err)}`;
@@ -221,7 +231,7 @@ function extractDisplayableTextFromToolResult(toolResult: any): string {
 function stringifySafe(message: BaseMessage): string {
   try {
     return JSON.stringify({
-      type: message?._getType?.(),
+      type: (message as any)?.getType?.(),
       content: (message as any)?.content ?? "",
     });
   } catch {

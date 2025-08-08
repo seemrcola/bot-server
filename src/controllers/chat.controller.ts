@@ -2,8 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import { chatService } from '../services/chat/chat.service.js';
 import { createLogger } from '../utils/logger.js';
 import { BaseMessage } from "@langchain/core/messages";
-import { ReActExecutor } from '../agent/index.js';
-import { globals } from '../globals.js';
 
 const logger = createLogger('ChatController');
 
@@ -23,20 +21,8 @@ export async function streamChatHandler(req: Request, res: Response, next: NextF
 
     logger.info('开始处理流式聊天请求 (ReAct 模式)', { sessionId });
 
-    // 使用 ReAct 执行器替换原先的单步 Agent 逻辑
-    const agent = globals.agent;
-    if (!agent) {
-      res.status(500).end('Agent 未初始化');
-      return;
-    }
-
-    const executor = new ReActExecutor({
-      llm: agent.languageModel,
-      clientManager: agent.clientManager,
-      systemPrompt: agent.systemPromptValue,
-    });
-
-    const stream = executor.run(messages as BaseMessage[], { maxSteps: 8 });
+    // 通过 Service 统一调度（保持分层）
+    const stream = await chatService.runReActStream(messages as BaseMessage[], { maxSteps: 8 });
 
     for await (const step of stream) {
       // 每一步都是 JSON 字符串
