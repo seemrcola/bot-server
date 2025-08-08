@@ -10,11 +10,11 @@
 
 ### 关键组件
 - `src/controllers/chat.controller.ts`：将请求切换到 ReAct 执行器，按 `reactVerbose` 控制输出。
-- `src/agent/react/react-executor.ts`：核心循环，驱动 LLM 决策与工具调用。
+- `src/agent/executor.ts`：核心循环，驱动 LLM 决策与工具调用（接收整个 `Agent` 实例）。
 - `src/agent/agent.ts`：提供 `languageModel`、`clientManager`、`systemPromptValue` 给执行器复用。
 
 ### 执行步骤（文字）
-1. 控制器构造 `ReActExecutor`，传入 LLM、`ClientManager` 与系统提示。
+1. 控制器构造 `ReActExecutor({ agent })`。
 2. 执行器进入最多 `maxSteps` 的循环：
    - 构造提示：系统提示 + ReAct 产出约束 + 工具清单 + 历史步骤 + 用户消息。
    - 调用 LLM 得到一步 JSON 决策（`thought`、`action`、`action_input`）。
@@ -29,7 +29,7 @@
 ```mermaid
 flowchart TD
   A["Client POST /api/chat/stream {messages, reactVerbose?}"] --> B["ChatController.streamChatHandler"]
-  B --> C["创建 ReActExecutor(llm, clientManager, systemPrompt)"]
+  B --> C["创建 ReActExecutor({ agent })"]
   C --> D["run(messages, maxSteps) -> AsyncIterable"]
 
   subgraph Loop["for step in 1..maxSteps"]

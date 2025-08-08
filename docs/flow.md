@@ -6,8 +6,9 @@ sequenceDiagram
   participant Express as "Express App"
   participant Router as "mainRouter/chatRouter"
   participant Controller as "streamChatHandler"
-  participant Agent as "Agent (deps provider)"
+  participant Service as "ChatService"
   participant ReAct as "ReActExecutor"
+  participant Agent as "Agent"
   participant LLM as "LLM (ChatOpenAI)"
   participant CM as "ClientManager"
   participant MCP as "MCPHttpClient"
@@ -16,10 +17,11 @@ sequenceDiagram
   Client->>Express: POST /api/chat/stream (messages)
   Express->>Router: route matching
   Router->>Controller: streamChatHandler(req, res)
-  Controller->>Agent: 读取 llm/clientManager/systemPrompt
-  Controller->>ReAct: run(messages, {maxSteps})
+  Controller->>Service: runReActStream(messages)
+  Service->>ReAct: new ReActExecutor({ agent }) & run(messages, {maxSteps})
 
   loop for step in 1..maxSteps
+    ReAct->>Agent: 读取 llm/clientManager/systemPrompt
     ReAct->>LLM: invoke(系统提示+ReAct约束+工具清单+历史steps+用户消息)
     LLM-->>ReAct: JSON 决策 {thought, action, action_input}
     alt action == tool_call
