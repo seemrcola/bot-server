@@ -10,10 +10,20 @@ classDiagram
     - externalClientManager: ClientManager
     - allTools: ExternalTool[]
     + ready: Promise<void>
+    + languageModel: BaseLanguageModel
+    + clientManager: ClientManager
+    + systemPromptValue: string
     + processMessageStream(messages: BaseMessage[], sessionId?): AsyncIterable<string>
     - _analyzeUserIntent(lastMessage: BaseMessage): ToolCall | null
     - _executeToolCall(toolCall: ToolCall): AsyncIterable<string>
     - _executeConventionalCall(messages: BaseMessage[]): AsyncIterable<string>
+  }
+
+  class ReActExecutor {
+    - llm: BaseLanguageModel
+    - clientManager: ClientManager
+    - systemPrompt: string
+    + run(messages: BaseMessage[], options?): AsyncIterable<string>
   }
 
   class ClientManager {
@@ -35,10 +45,6 @@ classDiagram
   class MCPServer {
     + listen(port: number, host: string): Promise<void>
     + mcp: McpServer
-  }
-
-  class ChatService {
-    + runChatStream(messages: BaseMessage[], sessionId?): Promise<AsyncIterable<string>>
   }
 
   class Globals {
@@ -69,20 +75,21 @@ classDiagram
   Agent --> ClientManager : uses
   Agent --> BaseLanguageModel : uses
   Agent o--> ExternalTool : binds tools
+  ReActExecutor --> ClientManager : uses
+  ReActExecutor --> BaseLanguageModel : uses
   ClientManager --> MCPHttpClient : manages *
   ClientManager o--> ExternalTool : caches *
-  ChatService --> Agent : uses
-  MainServer --> ChatService : routes
   MainServer --> Agent : creates
   Globals --> Agent : holds
   MainServer --> ChatOpenAI : constructs
   MCPServer <.. MainServer : started (test)
   Agent ..> SystemMessage : system prompt
+  ChatController ..> ReActExecutor : uses
+  ChatController ..> Agent : reads deps (getters)
 ```
 
 说明：
-- Agent 负责协调 LLM 与工具调用，暴露流式处理接口，并在构造后异步完成外部工具初始化（`ready`）。
-- ClientManager 统一管理多个 MCP 客户端，发现并缓存工具列表，提供按工具名路由的调用能力。
-- MCPServer 作为示例外部工具服务由入口进程启动，Agent 通过 HTTP MCP 协议访问。
-- `MainServer` 初始化 LLM、Agent、路由与中间件；`ChatService` 面向控制器聚合对 Agent 的调用。
+- 现已由 `ChatController` 直接使用 `ReActExecutor` 驱动“多步多工具”的 ReAct 流程；通过 `globals.agent` 暴露的只读 getter 复用同一 `LLM`/`ClientManager`/`systemPrompt`。
+- `Agent` 仍保留原单步能力与工具绑定逻辑（兼容/参考），但默认接口已切换到 ReAct。
+- `ClientManager` 统一管理多个 MCP 客户端；`MCPServer` 为示例外部工具服务，采用 Streamable HTTP 传输。
 

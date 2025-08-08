@@ -1,4 +1,4 @@
-## /api/chat/stream 调用流程
+## /api/chat/stream 调用流程（ReAct 模式）
 
 ```mermaid
 sequenceDiagram
@@ -6,8 +6,8 @@ sequenceDiagram
   participant Express as "Express App"
   participant Router as "mainRouter/chatRouter"
   participant Controller as "streamChatHandler"
-  participant Service as "ChatService"
-  participant Agent as "Agent"
+  participant Agent as "Agent (deps provider)"
+  participant ReAct as "ReActExecutor"
   participant LLM as "LLM (ChatOpenAI)"
   participant CM as "ClientManager"
   participant MCP as "MCPHttpClient"
@@ -16,33 +16,29 @@ sequenceDiagram
   Client->>Express: POST /api/chat/stream (messages)
   Express->>Router: route matching
   Router->>Controller: streamChatHandler(req, res)
-  Controller->>Service: runChatStream(messages)
-  Service->>Agent: processMessageStream(messages)
+  Controller->>Agent: 读取 llm/clientManager/systemPrompt
+  Controller->>ReAct: run(messages, {maxSteps})
 
-  Agent->>Agent: _analyzeUserIntent(lastMessage)
-  Note right of Agent: bind tools to LLM if tools available
-  Agent->>LLM: invoke([SystemMessage, lastMessage])
-  LLM-->>Agent: intentResponse (may include tool_calls)
-
-  alt tool_calls present
-    Agent->>Agent: _executeToolCall(toolCall)
-    Agent->>CM: callTool(name, args)
-    CM->>MCP: callTool
-    MCP->>Ext: HTTP /mcp (tool execution)
-    Ext-->>MCP: tool result
-    MCP-->>CM: result
-    CM-->>Agent: result
-    loop stream tool result
-      Agent-->>Controller: yield chunk
-      Controller-->>Client: res.write(chunk)
-    end
-  else no tool call
-    Agent->>Agent: _executeConventionalCall(messages)
-    Agent->>LLM: stream(history)
-    loop model stream chunks
-      LLM-->>Agent: chunk
-      Agent-->>Controller: yield chunk
-      Controller-->>Client: res.write(chunk)
+  loop for step in 1..maxSteps
+    ReAct->>LLM: invoke(系统提示+ReAct约束+工具清单+历史steps+用户消息)
+    LLM-->>ReAct: JSON 决策 {thought, action, action_input}
+    alt action == tool_call
+      ReAct->>CM: callTool(tool_name, parameters)
+      CM->>MCP: callTool
+      MCP->>Ext: /mcp
+      Ext-->>MCP: result
+      MCP-->>CM: result
+      CM-->>ReAct: result
+      ReAct-->>Controller: yield step(含 observation)
+      Controller-->>Client: 根据 reactVerbose 输出
+    else action == user_input
+      ReAct-->>Controller: yield step
+      Controller-->>Client: 根据 reactVerbose 输出
+      Note right of Controller: 终止等待用户补充
+    else action == final_answer
+      ReAct-->>Controller: yield step
+      Controller-->>Client: 根据 reactVerbose 输出
+      Note right of Controller: 终止
     end
   end
 
