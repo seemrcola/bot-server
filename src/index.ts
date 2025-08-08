@@ -1,6 +1,5 @@
 import "dotenv/config";
 import express from 'express';
-import bodyParser from 'body-parser';
 import cors from 'cors';
 import { config } from './config/index.js';
 import { mainRouter } from './routes/index.js';
@@ -17,7 +16,7 @@ const logger = createLogger('MainServer');
 
 // --- 中间件配置 ---
 app.use(express.static('public'));
-app.use(bodyParser.json());
+app.use(express.json());
 app.use(cors());
 
 // --- 路由配置 ---

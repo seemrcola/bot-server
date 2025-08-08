@@ -18,6 +18,9 @@ class ChatService {
       throw new Error("Agent 尚未初始化，无法处理聊天请求。");
     }
     
+    // 等待 Agent 的外部服务初始化完成，避免首次请求时工具尚未就绪
+    await agent.ready;
+
     logger.info('将消息路由到 Agent 处理...');
     return agent.processMessageStream(messages, sessionId);
   }

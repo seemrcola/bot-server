@@ -1,17 +1,23 @@
 import { BaseLanguageModel } from "@langchain/core/language_models/base";
-import { BaseMessage, HumanMessage } from "@langchain/core/messages";
-import { createLogger } from '../utils/logger.js';
-import { ClientManager, ExternalServerConfig } from './mcp/client/manager.js';
+import { BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { createLogger } from './utils/logger.js';
+import { ClientManager, ExternalServerConfig, ExternalTool } from './mcp/client/manager.js';
 import { Runnable } from "@langchain/core/runnables";
 import { createToolCallingExecutor } from "./llm/index.js";
 
 const logger = createLogger('Agent');
 
+const BASE_SYSTEM_PROMPT = `
+你是一个乐于助人的 AI 助手。
+`;
+
 export class Agent {
   private llm: BaseLanguageModel;
   private systemPrompt: string;
   private externalClientManager: ClientManager;
-  private allTools: any[] = [];
+  private allTools: ExternalTool[] = [];
+  public readonly ready: Promise<void>;
+  private resolveReady!: () => void;
 
   constructor(
     llm: BaseLanguageModel,
@@ -21,10 +27,11 @@ export class Agent {
     if (!llm) throw new Error("Agent 需要一个有效的 LLM 实例。");
     
     this.llm = llm;
-    this.systemPrompt = systemPrompt || "你是一个乐于助人的 AI 助手。";
+    this.systemPrompt = systemPrompt || BASE_SYSTEM_PROMPT;
     this.externalClientManager = new ClientManager();
 
     logger.info('Agent 已创建。正在初始化外部服务...');
+    this.ready = new Promise<void>((resolve) => { this.resolveReady = resolve; });
     this.initialize(externalServers);
   }
 
@@ -34,6 +41,7 @@ export class Agent {
       this.allTools = await this.externalClientManager.getAllTools();
       logger.info('Agent 初始化完成。');
       logger.info(`发现了 ${this.allTools.length} 个外部工具。`);
+      this.resolveReady();
     } catch (error) {
       logger.error('Agent 初始化失败', error);
       throw error;
@@ -43,12 +51,11 @@ export class Agent {
   /**
    * 分析用户最新消息的意图，判断是否需要调用工具。
    */
-  private async _analyzeUserIntent(lastMessage: BaseMessage): Promise<any | null> {
+  private async _analyzeUserIntent(lastMessage: BaseMessage): Promise<{ name: string; args: Record<string, unknown> } | null> {
     logger.info("开始执行意图分析...");
     
     let agentExecutor: Runnable = this.llm;
     if (this.allTools.length > 0) {
-      console.log('this.allTools', this.allTools);
       const formattedTools = this.allTools.map(tool => ({
         name: tool.name,
         description: tool.description,
@@ -61,16 +68,16 @@ export class Agent {
     }
     
     const intentAnalysisMessages: BaseMessage[] = [
-      new HumanMessage(this.systemPrompt),
+      new SystemMessage(this.systemPrompt),
       lastMessage
     ];
 
-    const intentResponse = await agentExecutor.invoke(intentAnalysisMessages);
-
-    if (intentResponse.tool_calls && intentResponse.tool_calls.length > 0) {
-      const toolCall = intentResponse.tool_calls[0];
-      logger.info(`意图分析成功: 模型建议调用工具 -> ${toolCall.name}`);
-      return toolCall;
+    const intentResponse: any = await agentExecutor.invoke(intentAnalysisMessages);
+    const toolCalls = Array.isArray(intentResponse?.tool_calls) ? intentResponse.tool_calls : [];
+    if (toolCalls.length > 0 && toolCalls[0]?.name) {
+      const args = (toolCalls[0].args && typeof toolCalls[0].args === 'object') ? toolCalls[0].args : {};
+      logger.info(`意图分析成功: 模型建议调用工具 -> ${toolCalls[0].name}`);
+      return { name: toolCalls[0].name, args };
     }
     
     logger.info("意图分析完成: 无需调用工具。");
@@ -80,7 +87,7 @@ export class Agent {
   /**
    * 执行工具调用的逻辑分支。
    */
-  private async *_executeToolCall(toolCall: any): AsyncIterable<string> {
+  private async *_executeToolCall(toolCall: { name: string; args: Record<string, unknown> }): AsyncIterable<string> {
     logger.info(`执行工具调用: ${toolCall.name}`);
     yield `正在调用工具: \`${toolCall.name}\`...\n`;
     try {
@@ -107,7 +114,7 @@ export class Agent {
   private async *_executeConventionalCall(messages: BaseMessage[]): AsyncIterable<string> {
     logger.info("执行常规LLM流式调用。");
     const history: BaseMessage[] = [
-      new HumanMessage(this.systemPrompt), 
+      new SystemMessage(this.systemPrompt), 
       ...messages
     ];
     

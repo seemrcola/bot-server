@@ -14,8 +14,13 @@ export function handleSuccess(req: Request, res: Response, next: NextFunction) {
   if (res.headersSent) {
     return next();
   }
-  
-  // 如果没有响应数据，继续到错误处理
+
+  // 如果控制器设置了数据，则统一成功返回
+  if (res.locals['data'] !== undefined) {
+    return res.status(200).json({ success: true, data: res.locals['data'] });
+  }
+
+  // 否则继续交给后续中间件（可能是错误处理中间件）
   next();
 }
 

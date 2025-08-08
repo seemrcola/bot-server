@@ -13,11 +13,21 @@ export interface ExternalServerConfig {
 }
 
 /**
+ * 外部工具的结构
+ */
+export interface ExternalTool {
+  name: string;
+  description?: string;
+  inputSchema?: unknown;
+}
+
+/**
  * 管理与多个外部 MCP 服务器的连接。
  */
 export class ClientManager {
   private clients: Map<string, MCPHttpClient> = new Map();
   private toolToServerMap: Map<string, string> = new Map(); // K: toolName, V: serverName
+  private discoveredTools: ExternalTool[] = [];
 
   constructor() {
     logger.info('客户端管理器已创建。');
@@ -46,14 +56,24 @@ export class ClientManager {
         logger.info(`成功连接到外部服务器: ${config.name}`);
 
         // 发现并注册该服务器的工具
+        // 连接上服务之后就可以知道该服务包含哪些工具
         const result = await client.listTools();
-        const tools = result.tools || [];
+        const tools: ExternalTool[] = result.tools || [];
         for (const tool of tools) {
           if (tool && tool.name) {
             this.toolToServerMap.set(tool.name, config.name);
             logger.info(`  - 发现外部工具: ${tool.name} (位于 ${config.name})`);
           }
         }
+        // 合并并按名称去重
+        const merged = [...this.discoveredTools, ...tools];
+        const dedupedByName = new Map<string, ExternalTool>();
+        for (const t of merged) {
+          if (t && t.name && !dedupedByName.has(t.name)) {
+            dedupedByName.set(t.name, t);
+          }
+        }
+        this.discoveredTools = Array.from(dedupedByName.values());
       } catch (error) {
         logger.error(`连接到外部服务器 ${config.name} 失败`, error);
       }
@@ -64,20 +84,9 @@ export class ClientManager {
    * 汇总并返回所有外部工具的列表。
    * @returns 一个包含所有外部工具的数组
    */
-  public async getAllTools(): Promise<any[]> {
-    let allTools: any[] = [];
-    for (const client of this.clients.values()) {
-      try {
-        const result = await client.listTools();
-        const tools = result.tools || [];
-        if (tools.length > 0) {
-          allTools = allTools.concat(tools);
-        }
-      } catch (error) {
-        logger.error('从客户端获取工具列表失败', error);
-      }
-    }
-    return allTools;
+  public async getAllTools(): Promise<ExternalTool[]> {
+    // 直接返回连接阶段缓存的工具清单
+    return [...this.discoveredTools];
   }
 
   /**

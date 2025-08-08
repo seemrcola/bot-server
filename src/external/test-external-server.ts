@@ -4,7 +4,6 @@
  */
 import { MCPServer } from '../agent/index.js';
 import { createLogger } from '../utils/logger.js';
-import { z } from 'zod';
 
 const logger = createLogger('TestExternalServer');
 
