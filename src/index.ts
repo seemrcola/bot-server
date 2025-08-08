@@ -5,8 +5,7 @@ import { config } from './config/index.js';
 import { mainRouter } from './routes/index.js';
 import { handleSuccess, handleError } from './middlewares/response.middleware.js';
 import { createLogger } from './utils/logger.js';
-import { Agent, ExternalServerConfig } from './agent/index.js';
-import { QuietChatOpenAI } from './agent/llm/quiet-openai.js';
+import { Agent, ExternalServerConfig, AgentManager, QuietChatOpenAI } from './agent/index.js';
 import { systemPrompt } from './prompts/index.js';
 import { globals } from './globals.js';
 import fs from 'fs';
@@ -71,9 +70,12 @@ async function startServer() {
     const llm = createLLM();
     const externalServers = await loadAndStartExternalServers();
 
-    // 创建 Agent 实例
-    globals.agent = new Agent(llm, externalServers, systemPrompt);
-    logger.info('Agent 实例已创建，正在后台进行初始化...');
+    // 创建 AgentManager 与默认 Agent
+    const agentManager = new AgentManager();
+    const mainAgent = new Agent(llm, externalServers, systemPrompt);
+    agentManager.addAgent('main-agent', mainAgent);
+    globals.agentManager = agentManager;
+    logger.info('AgentManager 已创建并注册默认 Agent: main-agent');
 
     // 资源池相关逻辑已移除
 

@@ -12,12 +12,18 @@ class ChatService {
    */
   public async runReActStream(
     messages: BaseMessage[],
-    options: { maxSteps?: number } = {}
+    options: { maxSteps?: number; agentName?: string } = {}
   ): Promise<AsyncIterable<string>> {
-    const agent = globals.agent;
+    const agentName = options.agentName || 'main-agent';
+    const agentManager = globals.agentManager;
+    if (!agentManager) {
+      logger.error("严重错误: AgentManager 未初始化！");
+      throw new Error("AgentManager 尚未初始化，无法处理聊天请求。");
+    }
+    const agent = agentManager.getAgent(agentName);
     if (!agent) {
-      logger.error("严重错误: Agent 实例未初始化！");
-      throw new Error("Agent 尚未初始化，无法处理聊天请求。");
+      logger.error(`未找到名为 ${agentName} 的 Agent！`);
+      throw new Error(`未找到名为 ${agentName} 的 Agent。`);
     }
 
     await agent.ready;

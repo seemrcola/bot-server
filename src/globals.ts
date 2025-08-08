@@ -2,10 +2,10 @@
  * 全局容器，用于在应用程序的不同部分之间共享单例实例。
  * 这有助于避免循环依赖问题。
  */
-import { Agent } from './agent/agent.js';
+import { AgentManager } from './agent/manager.js';
 
 interface GlobalContainer {
-  agent?: Agent;
+  agentManager?: AgentManager;
 }
 
 export const globals: GlobalContainer = {};
