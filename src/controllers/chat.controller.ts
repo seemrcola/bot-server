@@ -7,15 +7,15 @@ const logger = createLogger('ChatController');
 
 export async function streamChatHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { messages, sessionId, reactVerbose } = req.body;
+    const { messages, sessionId } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       res
         .status(400)
-        .json({error: 'messages are required in the request body and must be a non-empty array.' });
+        .json({ error: 'messages are required in the request body and must be a non-empty array.' });
       return;
     }
-    
+
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.flushHeaders();
 
@@ -24,43 +24,64 @@ export async function streamChatHandler(req: Request, res: Response, next: NextF
     // 通过 Service 统一调度（保持分层）
     const stream = await chatService.runReActStream(messages as BaseMessage[], { maxSteps: 8 });
 
+    // 默认采用“友好增强”模式
+    const enhance = createFriendlyEnhancer();
     for await (const step of stream) {
-      // 每一步都是 JSON 字符串
-      if (reactVerbose) {
-        // 兼容：需要完整 ReAct 轨迹时直接透传
-        res.write(step + '\n');
-        continue;
-      }
-
-      // 默认：只向客户端输出最终答案，步骤仅写入服务端日志
-      try {
-        const obj = JSON.parse(step);
-        const action = obj?.action;
-        if (action === 'tool_call') {
-          logger.debug('ReAct step tool_call', { tool: obj?.action_input?.tool_name, params: obj?.action_input?.parameters });
-          continue;
-        }
-        if (action === 'user_input') {
-          logger.debug('ReAct step user_input', { thought: obj?.thought });
-          continue;
-        }
-        if (action === 'final_answer') {
-          const answer: unknown = obj?.answer;
-          const text = typeof answer === 'string' ? answer : JSON.stringify(answer);
-          res.write(text);
-        }
-      } catch {
-        // 若解析失败，降级为直接输出原始文本，避免丢失信息
-        res.write(step + '\n');
-      }
+      const chunks = enhance(step);
+      for (const c of chunks) res.write(c);
     }
 
     res.end();
-    
+
     logger.info('流式聊天请求处理完成', { sessionId });
 
   } catch (error) {
     logger.error('处理流式聊天请求时出错', error);
     next(error);
   }
+}
+
+/**
+ * 为 ReAct 流式步骤提供按模式的输出增强，同时在 final 时合成更友好的答案。
+ * 使用闭包在多步过程中保留最近的工具观测结果。
+ */
+function createFriendlyEnhancer() {
+  const observations: string[] = [];
+
+  function enhanceFinal(answerVal: unknown): string {
+    const answer = typeof answerVal === "string" ? answerVal : JSON.stringify(answerVal);
+    if (observations.length === 0) return answer;
+    // 简单增强：在最终答案后追加结构化小结（可按需定制更复杂的模板）
+    const summary = observations.map((o) => `- ${o}`).join("\n");
+    return `${answer}\n\n—— 信息小结 ——\n${summary}`;
+  }
+
+  return function enhance(stepJson: string): string[] {
+    let obj: any = null;
+    try { obj = JSON.parse(stepJson); } catch { return [stepJson + "\n"]; }
+
+    const action = obj?.action;
+
+    if (action === "tool_call") {
+      if (obj?.observation) observations.push(obj.observation);
+      const tool = obj?.action_input?.tool_name;
+      const prettyArgs = JSON.stringify(obj?.action_input?.parameters ?? {});
+      const lines: string[] = [];
+      lines.push(`正在调用工具: ${tool}，参数: ${prettyArgs}\n`);
+      if (obj?.observation) lines.push(`工具结果: ${obj.observation}\n`);
+      return lines;
+    }
+
+    if (action === "user_input") {
+      return [`需要更多信息：${obj?.thought || "请补充说明"}\n`];
+    }
+
+    if (action === "final_answer") {
+      const text = enhanceFinal(obj?.answer);
+      return [text];
+    }
+
+    // 兜底：保持健壮性
+    return [stepJson + "\n"];
+  };
 }

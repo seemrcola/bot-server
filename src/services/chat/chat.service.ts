@@ -6,9 +6,6 @@ import { ReActExecutor } from '../../agent/index.js';
 const logger = createLogger('ChatService');
 
 class ChatService {
-
-  // 旧的单步流程已废弃
-
   /**
    * ReAct 模式：多步、多工具的流式聊天链。
    * 默认仅在最终答案时输出；如需步骤轨迹，请在控制器层处理。
