@@ -9,8 +9,10 @@ export { Agent } from './agent.js';
 export { MCPServer } from './mcp/server/index.js';
 // 导出 MCP 相关的类型
 export type { ExternalServerConfig } from './mcp/client/manager.js';
-// 导出 ReAct 执行器
-export { ReActExecutor } from './executor.js';
+// 导出 ReAct 执行器（Prompt 模式）
+export { PromptReActExecutor } from './executors/promptBaseToolUse.ReAct.js';
+// 导出 ReAct 执行器（Function Calling 模式）
+export { FunctionReActExecutor } from './executors/functionCalling.ReAct.js';
 // 导出 Agent 管理器
 export { AgentManager } from './manager.js';
 // 导出 QuietChatOpenAI 语言模型

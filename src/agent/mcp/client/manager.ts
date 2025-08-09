@@ -65,13 +65,19 @@ export class ClientManager {
             logger.info(`  - 发现外部工具: ${tool.name} (位于 ${config.name})`);
           }
         }
-        // 合并并按名称去重
+        /**
+         * 按照名称去重
+         * 这里有个问题 不通的server确实有可能有相同的工具名称 
+         * 但是我们不额外考虑这种情况 说明文档中要说明清楚用户在使用agent时 要自行把握名称处理
+         */
         const merged = [...this.discoveredTools, ...tools];
         const dedupedByName = new Map<string, ExternalTool>();
         for (const t of merged) {
           if (t && t.name && !dedupedByName.has(t.name)) {
             dedupedByName.set(t.name, t);
+            continue;
           }
+          logger.warn(`发现外部工具: ${t.name} (位于 ${config.name}) 但名称重复，将跳过。`);
         }
         this.discoveredTools = Array.from(dedupedByName.values());
       } catch (error) {

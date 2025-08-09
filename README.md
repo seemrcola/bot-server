@@ -35,7 +35,9 @@ pnpm dev
     "messages": [
       { "type": "human", "content": "给我打个招呼。先给我获取系统信息，再给我获取天气信息" }
     ],
-    "reactVerbose": false
+    "reactVerbose": false,
+    "agentName": "main-agent",
+    "strategy": "prompt"
   }
   ```
 - 字段说明：
@@ -43,6 +45,8 @@ pnpm dev
   - `reactVerbose`（可选，默认 false）：
     - `false`：只返回最终 `answer` 文本；
     - `true`：逐步返回严格的 ReAct JSON（含 `thought/action/action_input/observation/answer`）。
+  - `agentName`（可选，默认 `main-agent`）：选择要执行的 Agent。
+  - `strategy`（可选）：`prompt`（基于提示词 ReAct JSON）或 `function`（基于 function-calling）；若未提供，使用 `REACT_STRATEGY`。
 - 响应：`text/plain` 流。根据 `reactVerbose` 不同，返回最终答案或每步 JSON 行。
 
 ---
@@ -53,7 +57,9 @@ pnpm dev
 src/
   agent/
     agent.ts            # Agent：负责外部 MCP 连接与依赖提供（LLM、ClientManager、systemPrompt）
-    executor.ts         # ReActExecutor：ReAct 推理/工具调用循环，接收整个 Agent 实例
+    executors/
+      promptBaseToolUse.ReAct.ts   # PromptReActExecutor：基于提示词的 ReAct 执行器
+      functionCalling.ReAct.ts     # FunctionReActExecutor：基于 function-calling 的 ReAct 执行器
     mcp/
       client/           # MCP 客户端与管理器（连接、列举工具、按名路由调用）
       server/           # MCP Server 基类与 HTTP 适配（示例外部服务使用）
@@ -69,15 +75,17 @@ src/
 
 ## 架构概览
 
-- 控制器 `ChatController` → 调用 `ChatService.runReActStream()` → 内部构造 `ReActExecutor({ agent })` → 执行 ReAct 循环。
-- `ReActExecutor`：
+- 控制器 `ChatController` → 调用 `ChatService.runReActStream(messages, { agentName, strategy })` → 选择执行器并执行 ReAct 循环。
+- 执行器（`PromptReActExecutor`/`FunctionReActExecutor`）：
   - 读取 `agent.languageModel`、`agent.clientManager`、`agent.systemPromptValue`；
-  - 每步向 LLM 发出“严格 JSON 输出”的提示；
+  - 每步向 LLM 发出“严格 JSON 输出”的提示或绑定工具；
   - `action=tool_call` 时通过 `ClientManager.callTool` 调用 MCP 工具，并将返回文本作为 `observation`；
   - `final_answer` 时结束流程。
 - `Agent`：
   - 在应用启动时连接外部 MCP Server，发现可用工具；
   - 通过 getter 提供 LLM、ClientManager、systemPrompt 给执行器复用。
+ - `AgentManager`：
+   - 管理多个 Agent；`ChatService` 通过 `agentName` 选择具体 Agent。
 
 更多细节与流程图，请见：
 - `docs/architecture.md`
@@ -91,6 +99,7 @@ src/
 - `LLM_API_KEY`：大模型 API key
 - `LLM_MODEL`：默认 `deepseek-chat`
 - `LLM_BASE_URL`：OpenAI 兼容 API base URL
+ - `REACT_STRATEGY`：默认执行策略（`prompt` | `function`）
 
 ---
 

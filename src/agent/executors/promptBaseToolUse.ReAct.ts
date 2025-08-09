@@ -1,8 +1,8 @@
 import { BaseLanguageModel } from "@langchain/core/language_models/base";
 import { BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { ClientManager } from "./mcp/client/manager.js";
-import { createLogger } from "./utils/logger.js";
-import { Agent } from "./agent.js";
+import { ClientManager } from "../mcp/client/manager.js";
+import { createLogger } from "../utils/logger.js";
+import { Agent } from "../agent.js";
 
 const logger = createLogger("ReActExecutor");
 const MAX_STEPS = 8;
@@ -24,7 +24,7 @@ export interface ReActExecutorOptions {
   maxSteps?: number;
 }
 
-export class ReActExecutor {
+export class PromptReActExecutor {
   private readonly llm: BaseLanguageModel;
   private readonly clientManager: ClientManager;
   private readonly systemPrompt: string;
@@ -101,9 +101,7 @@ export class ReActExecutor {
       try {
         /**
          * llm.invoke 的返回值格式如下：
-         * {
-         *   content: string | Array<{ type: string; text: string }>
-         * }
+         * { content: string | Array<{ type: string; text: string }> }
          */
         raw = await this.llm.invoke(promptMessages);
       } catch (err) {

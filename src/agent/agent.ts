@@ -30,7 +30,17 @@ export class Agent {
     this.externalClientManager = new ClientManager();
 
     logger.info('Agent 已创建。正在初始化外部服务...');
+
+    /**
+     * 创建一个promise，用于等待Agent初始化完成
+     * 将resolveReady赋值给resolve，这样在别的函数中可以调用resolveReady()来通知Agent初始化完成
+     * 可以使用Promise.withResolvers()来实现。 如下：
+     * const { promise, resolve } = Promise.withResolvers<void>();
+     * this.ready = promise;
+     * this.resolveReady = resolve;
+     */
     this.ready = new Promise<void>((resolve) => { this.resolveReady = resolve; });
+   
     this.initialize(externalServers);
   }
 
@@ -57,11 +67,12 @@ export class Agent {
 
   private async initialize(externalServers: ExternalServerConfig[]) {
     try {
+      // 连接外部服务 连接同时创建对应的 client 与 外部服务 一一对应
       await this.externalClientManager.connect(externalServers);
       const tools = await this.externalClientManager.getAllTools();
       logger.info('Agent 初始化完成。');
       logger.info(`发现了 ${tools.length} 个外部工具。`);
-      this.resolveReady();
+      this.resolveReady(); // 通知Agent初始化完成
     } catch (error) {
       logger.error('Agent 初始化失败', error);
       throw error;

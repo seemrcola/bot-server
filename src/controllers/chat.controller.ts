@@ -8,7 +8,7 @@ const logger = createLogger('ChatController');
 
 export async function streamChatHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { messages, sessionId, reactVerbose, agentName } = req.body;
+    const { messages, sessionId, reactVerbose, agentName, strategy } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       res
@@ -25,7 +25,7 @@ export async function streamChatHandler(req: Request, res: Response, next: NextF
     // 资源池相关逻辑已移除
 
     // 通过 Service 统一调度（保持分层）
-    const stream = await chatService.runReActStream(messages as BaseMessage[], { maxSteps: 8, agentName });
+    const stream = await chatService.runReActStream(messages as BaseMessage[], { maxSteps: 8, agentName, strategy });
 
     if (reactVerbose === true) {
       // 输出严格的 ReAct JSON 步骤

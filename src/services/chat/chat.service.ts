@@ -1,7 +1,8 @@
 import { BaseMessage } from "@langchain/core/messages";
 import { createLogger } from '../../utils/logger.js';
 import { globals } from '../../globals.js'; // 从全局容器导入
-import { ReActExecutor } from '../../agent/index.js';
+import { PromptReActExecutor, FunctionReActExecutor } from '../../agent/index.js';
+import { config, type AppConfig } from '../../config/index.js';
 
 const logger = createLogger('ChatService');
 
@@ -12,9 +13,10 @@ class ChatService {
    */
   public async runReActStream(
     messages: BaseMessage[],
-    options: { maxSteps?: number; agentName?: string } = {}
+    options: { maxSteps: number; agentName: string; strategy?: AppConfig['reactStrategy'] }
   ): Promise<AsyncIterable<string>> {
     const agentName = options.agentName || 'main-agent';
+
     const agentManager = globals.agentManager;
     if (!agentManager) {
       logger.error("严重错误: AgentManager 未初始化！");
@@ -26,10 +28,21 @@ class ChatService {
       throw new Error(`未找到名为 ${agentName} 的 Agent。`);
     }
 
+    // 等待Agent初始化完成
     await agent.ready;
 
-    const executor = new ReActExecutor({ agent });
-    return executor.run(messages, { maxSteps: options.maxSteps ?? 8 });
+    const strategy = options.strategy || config.reactStrategy;
+    if (strategy === 'function') {
+      logger.info('使用 FunctionReActExecutor 策略');
+      const executor = new FunctionReActExecutor({ agent });
+      return executor.run(messages, { maxSteps: options.maxSteps });
+    }
+    if (strategy === 'prompt') {
+      logger.info('使用 PromptReActExecutor 策略');
+      const executor = new PromptReActExecutor({ agent });
+      return executor.run(messages, { maxSteps: options.maxSteps });
+    }
+    throw new Error(`不支持的策略: ${strategy}`);
   }
 }
 

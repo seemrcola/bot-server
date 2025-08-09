@@ -2,7 +2,9 @@
 
 本目录提供可独立迁移/打包的智能体模块，包含：
 - `Agent`: 统一提供 LLM、外部工具管理（MCP）与系统提示词
-- `ReActExecutor`: 基于 ReAct 模式的多步推理与多工具编排，支持流式按步输出
+- 执行器（两种实现，可二选一）：
+  - `PromptReActExecutor`：基于 Prompt 的 ReAct 多步推理与多工具编排（模型输出自定义 JSON）
+  - `FunctionReActExecutor`：基于 Function Calling 的 ReAct（模型原生 tool_call）
 - `MCPServer`: 简易 MCP 服务端基类，便于注册/暴露自定义工具
 
 ### 核心能力
@@ -22,7 +24,7 @@ pnpm add @langchain/core @langchain/openai @modelcontextprotocol/sdk
 ### 快速开始
 
 ```ts
-import { Agent, ReActExecutor, MCPServer } from './index.js';
+import { Agent, PromptReActExecutor, FunctionReActExecutor, MCPServer } from './index.js';
 import { QuietChatOpenAI } from '../agent/llm/quiet-openai.js';
 import type { ExternalServerConfig } from './mcp/client/manager.js';
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
@@ -48,7 +50,10 @@ const agent = new Agent(llm, servers, systemPrompt);
 await agent.ready;
 
 // 4) 以 ReAct 模式执行（流式按步输出 JSON 文本）
-const executor = new ReActExecutor({ agent });
+// 选择一种执行器：PromptReActExecutor（默认）或 FunctionReActExecutor
+const executor = new PromptReActExecutor({ agent });
+// 或：
+// const executor = new FunctionReActExecutor({ agent });
 const messages = [
   new HumanMessage('给我打个招呼。先获取系统信息，再获取天气信息')
 ];
@@ -111,7 +116,7 @@ await server.listen(3102, 'localhost');
 }
 ```
 
-`ReActExecutor` 会从 `content` 中提取可展示文本，填入 `observation`。
+`PromptReActExecutor`/`FunctionReActExecutor` 均会从 `content` 中提取可展示文本，填入 `observation`。
 
 ### 友好增强（展示层建议）
 Agent/Executor 产出的是“标准 JSON 步骤”。建议在上层（如 Web Controller）做“友好增强”，例如：
@@ -141,7 +146,9 @@ Agent/Executor 产出的是“标准 JSON 步骤”。建议在上层（如 Web 
   - `ready: Promise<void>`: 完成外部服务连接与工具发现
   - `languageModel`, `clientManager`, `systemPromptValue`
 
-- `class ReActExecutor({ agent })`
+- `class PromptReActExecutor({ agent })`
+  - `run(messages: BaseMessage[], { maxSteps?: number }): AsyncIterable<string>`
+- `class FunctionReActExecutor({ agent })`
   - `run(messages: BaseMessage[], { maxSteps?: number }): AsyncIterable<string>`
 
 - `class MCPServer({ name, version })`
@@ -149,4 +156,9 @@ Agent/Executor 产出的是“标准 JSON 步骤”。建议在上层（如 Web 
   - `listen(port, host)`
 
 如需独立打包发布，可将本目录作为一个独立包输出，并在 `index.ts` 暴露上述类与类型。
+
+### 执行策略选择
+- Prompt 模式：适用于所有模型；以提示词约束输出 ReAct JSON，通用但 token 开销略高。
+- Function 模式：依赖模型的 function-calling 能力；工具调用更结构化、更省 token。
+在本项目服务层中，可通过请求参数 `strategy: 'prompt' | 'function'` 或环境变量 `REACT_STRATEGY` 选择策略。
 
