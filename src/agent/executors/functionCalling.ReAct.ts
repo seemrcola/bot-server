@@ -59,6 +59,11 @@ export class FunctionReActExecutor {
       try {
         ai = await modelWithTools.invoke(dynamicMessages);
       } catch (err) {
+        // 若在首次迭代即失败，则抛出异常，交由上层做策略回退（fallback 到 Prompt 模式）
+        if (i === 0) {
+          throw err instanceof Error ? err : new Error(String(err));
+        }
+        // 非首轮失败，输出一个终止步骤
         const step = {
           thought: "LLM 调用失败，准备终止。",
           action: "final_answer",

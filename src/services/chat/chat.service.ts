@@ -35,7 +35,13 @@ class ChatService {
     if (strategy === 'function') {
       logger.info('使用 FunctionReActExecutor 策略');
       const executor = new FunctionReActExecutor({ agent });
-      return executor.run(messages, { maxSteps: options.maxSteps });
+      try {
+        return executor.run(messages, { maxSteps: options.maxSteps });
+      } catch (err) {
+        logger.warn('FunctionReActExecutor 初始化失败，回退到 PromptReActExecutor', err);
+        const promptExecutor = new PromptReActExecutor({ agent });
+        return promptExecutor.run(messages, { maxSteps: options.maxSteps });
+      }
     }
     if (strategy === 'prompt') {
       logger.info('使用 PromptReActExecutor 策略');

@@ -100,6 +100,7 @@ export class PromptReActExecutor {
       let raw: any;
       try {
         /**
+         * llm.invoke的作用是 调用llm模型 并返回结果
          * llm.invoke 的返回值格式如下：
          * { content: string | Array<{ type: string; text: string }> }
          */
@@ -215,7 +216,13 @@ function extractDisplayableTextFromToolResult(toolResult: any): string {
   if (Array.isArray(resultContent)) {
     const texts: string[] = [];
     for (const part of resultContent) {
-      if (part && typeof part === "object" && (part as any).type === "text" && typeof (part as any).text === "string") {
+      if (
+        part &&
+        typeof part === "object" &&
+        (part as any).type === "text" &&
+        typeof (part as any).text === "string"
+      )
+      {
         texts.push((part as any).text);
       }
     }
