@@ -3,6 +3,7 @@ import { BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messag
 import { ClientManager } from "../mcp/client/manager.js";
 import { createLogger } from "../utils/logger.js";
 import { Agent } from "../agent.js";
+import { extractText, extractDisplayableTextFromToolResult } from "./utils.js";
 
 const logger = createLogger("FunctionReActExecutor");
 const MAX_STEPS = 8;
@@ -133,28 +134,5 @@ export class FunctionReActExecutor {
   }
 }
 
-function extractText(content: unknown): string {
-  if (typeof content === "string") return content;
-  if (Array.isArray(content)) return content.map((c) => String((c as any)?.text ?? "")).join("");
-  if (content && typeof content === "object" && (content as any).type === "text") {
-    return String((content as any).text ?? "");
-  }
-  return String(content ?? "");
-}
-
-function extractDisplayableTextFromToolResult(toolResult: any): string {
-  const resultContent: unknown = toolResult?.content;
-  if (Array.isArray(resultContent)) {
-    const texts: string[] = [];
-    for (const part of resultContent) {
-      if (part && typeof part === "object" && (part as any).type === "text" && typeof (part as any).text === "string") {
-        texts.push((part as any).text);
-      }
-    }
-    return texts.length > 0 ? texts.join("") : "工具未返回可显示的文本结果。";
-  } else if (typeof resultContent === "string") {
-    return resultContent;
-  }
-  return "工具未返回可显示的文本结果。";
-}
+// moved common helpers to ./utils
 
