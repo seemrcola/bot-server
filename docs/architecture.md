@@ -73,7 +73,7 @@ classDiagram
   class BaseLanguageModel
   class BaseMessage
   class SystemMessage
-  class ChatOpenAI
+  class ChatDeepSeek
 
   Agent --> ClientManager : uses
   Agent --> BaseLanguageModel : uses
@@ -84,7 +84,7 @@ classDiagram
   MainServer --> AgentManager : creates
   AgentManager --> Agent : manages *
   Globals --> AgentManager : holds
-  MainServer --> ChatOpenAI : constructs
+  MainServer --> ChatDeepSeek : constructs
   MCPServer <.. MainServer : started (test)
   Agent ..> SystemMessage : system prompt
   ChatController ..> ReActExecutor : uses

@@ -10,7 +10,7 @@
 
 ### 关键组件
 - `src/controllers/chat.controller.ts`：按 `agentName` 选择 Agent，按 `reactVerbose` 控制输出。
-- `src/agent/executor.ts`：核心循环，驱动 LLM 决策与工具调用（接收整个 `Agent` 实例）。
+- `src/agent/executors/*.ts`：核心循环，驱动 LLM 决策与工具调用（接收整个 `Agent` 实例）。
 - `src/agent/agent.ts`：提供 `languageModel`、`clientManager`、`systemPromptValue` 给执行器复用。
 
 ### 执行步骤（文字）
@@ -53,6 +53,7 @@ flowchart TD
 
 ### 相关文件
 - `src/controllers/chat.controller.ts`
-- `src/agent/react/react-executor.ts`
+- `src/agent/executors/promptBaseToolUse.ReAct.ts`
+- `src/agent/executors/functionCalling.ReAct.ts`
 - `src/agent/agent.ts`
 

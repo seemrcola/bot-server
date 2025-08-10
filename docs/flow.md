@@ -10,7 +10,7 @@ sequenceDiagram
   participant ReAct as "ReActExecutor"
   participant AM as "AgentManager"
   participant Agent as "Agent"
-  participant LLM as "LLM (ChatOpenAI)"
+  participant LLM as "LLM (ChatDeepSeek/Any BaseLanguageModel)"
   participant CM as "ClientManager"
   participant MCP as "MCPHttpClient"
   participant Ext as "External MCP Server"
