@@ -16,21 +16,21 @@
 Agent 依赖 LangChain 与 MCP SDK，推荐在外部工程中安装：
 
 ```bash
-pnpm add @langchain/core @langchain/openai @modelcontextprotocol/sdk
+pnpm add @langchain/core @langchain/deepseek @modelcontextprotocol/sdk
 ```
 
-你可以使用任意符合 `BaseLanguageModel` 的 LLM 实现。示例中使用 `QuietChatOpenAI`（本仓库内）来避免 tiktoken 的本地日志告警，也可以替换为你自己的模型包装器。
+你可以使用任意符合 `BaseLanguageModel` 的 LLM 实现。下面示例使用 `@langchain/deepseek` 提供的 `ChatDeepSeek`。
 
 ### 快速开始
 
 ```ts
 import { Agent, PromptReActExecutor, FunctionReActExecutor, MCPServer } from './index.js';
-import { QuietChatOpenAI } from '../agent/llm/quiet-openai.js';
+import { ChatDeepSeek } from '@langchain/deepseek';
 import type { ExternalServerConfig } from './mcp/client/manager.js';
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 
 // 1) 准备 LLM（可替换为你自己的 LLM 包装器）
-const llm = new QuietChatOpenAI({
+const llm = new ChatDeepSeek({
   apiKey: process.env.LLM_API_KEY ?? '',
   model: process.env.LLM_MODEL ?? 'deepseek-chat',
   temperature: 0.7,
@@ -128,9 +128,6 @@ Agent/Executor 产出的是“标准 JSON 步骤”。建议在上层（如 Web 
 
 ### 常见问题
 
-- 模型名不在 tiktoken 映射表会打印告警？
-  - 使用本仓库的 `QuietChatOpenAI`，或自定义一个 LLM 包装器，覆盖本地 token 估算逻辑即可（不影响真实计费）。
-
 - 工具结果能否“真流式”？
   - 需要工具端分片产出并通过 MCP 推送，客户端再提供 `AsyncIterable` 管道。目前默认是一次性结果；可先输出“调用中…”心跳提高体验。
 
@@ -161,4 +158,5 @@ Agent/Executor 产出的是“标准 JSON 步骤”。建议在上层（如 Web 
 - Prompt 模式：适用于所有模型；以提示词约束输出 ReAct JSON，通用但 token 开销略高。
 - Function 模式：依赖模型的 function-calling 能力；工具调用更结构化、更省 token。
 在本项目服务层中，可通过请求参数 `strategy: 'prompt' | 'function'` 或环境变量 `REACT_STRATEGY` 选择策略。
+
 

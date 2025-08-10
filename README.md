@@ -99,7 +99,9 @@ src/
 - `LLM_API_KEY`：大模型 API key
 - `LLM_MODEL`：默认 `deepseek-chat`
 - `LLM_BASE_URL`：OpenAI 兼容 API base URL
- - `REACT_STRATEGY`：默认执行策略（`prompt` | `function`）
+- `REACT_STRATEGY`：默认执行策略（`prompt` | `function`）
+
+> 当前示例在 `src/index.ts` 中使用 `@langchain/deepseek` 的 `ChatDeepSeek` 作为 LLM 实现，可按需替换为任意兼容 `BaseLanguageModel` 的实现。
 
 ---
 
