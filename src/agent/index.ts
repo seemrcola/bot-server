@@ -15,5 +15,3 @@ export { PromptReActExecutor } from './executors/promptBaseToolUse.ReAct.js';
 export { FunctionReActExecutor } from './executors/functionCalling.ReAct.js';
 // 导出 Agent 管理器
 export { AgentManager } from './manager.js';
-// 导出 QuietChatOpenAI 语言模型
-export { QuietChatOpenAI } from './llm/quiet-openai.js';
