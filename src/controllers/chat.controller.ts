@@ -20,24 +20,31 @@ export async function streamChatHandler(req: Request, res: Response, next: NextF
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.flushHeaders();
 
-    logger.info('开始处理流式聊天请求 (ReAct 模式)', { sessionId });
+    logger.info('开始处理流式聊天请求 (意图分析 + 流式输出)', { sessionId });
 
     // 资源池相关逻辑已移除
 
-    // 通过 Service 统一调度（保持分层）
-    const stream = await chatService.runReActStream(messages as BaseMessage[], { maxSteps: 8, agentName, strategy });
+    // 先进行意图分析。若无需工具，则直接以 Markdown 流式输出答案
+    const analyzed = await chatService.runStreamWithIntent(messages as BaseMessage[], { maxSteps: 8, agentName, strategy });
 
-    if (reactVerbose === true) {
-      // 输出严格的 ReAct JSON 步骤
-      for await (const step of stream) {
-        res.write(step + "\n");
+    if (analyzed.mode === 'direct') {
+      for await (const chunk of analyzed.stream) {
+        res.write(chunk);
       }
     } else {
-      // 友好增强：打印工具调用与结果，并在最终答案后附“信息小结”
-      const enhance = createFriendlyEnhancer();
-      for await (const step of stream) {
-        const chunks = enhance(step);
-        for (const c of chunks) res.write(c);
+      const stream = analyzed.stream;
+      if (reactVerbose === true) {
+        // 输出严格的 ReAct JSON 步骤
+        for await (const step of stream) {
+          res.write(step + "\n");
+        }
+      } else {
+        // 友好增强：打印工具调用与结果，并在最终答案后附“信息小结”
+        const enhance = createFriendlyEnhancer();
+        for await (const step of stream) {
+          const chunks = enhance(step);
+          for (const c of chunks) res.write(c);
+        }
       }
     }
 
