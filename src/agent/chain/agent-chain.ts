@@ -1,0 +1,77 @@
+import { BaseMessage } from "@langchain/core/messages";
+import { createLogger } from '../utils/logger.js';
+import { Agent } from '../agent.js';
+import { config } from '../../config/index.js';
+import { ChainStep, ChainContext, ChainOptions } from './types.js';
+import { 
+  IntentAnalysisStep, 
+  DirectLLMStep, 
+  ReActExecutionStep, 
+  ResponseEnhancementStep 
+} from './steps/index.js';
+
+const logger = createLogger('AgentChain');
+
+/**
+ * 主链式处理器
+ */
+export class AgentChain {
+  private agent: Agent;
+  private steps: ChainStep[];
+
+  constructor(agent: Agent) {
+    this.agent = agent;
+    this.steps = [
+      new IntentAnalysisStep(),
+      new DirectLLMStep(),
+      new ReActExecutionStep(),
+      new ResponseEnhancementStep(),
+    ];
+  }
+
+  /**
+   * 执行完整的链式处理流程
+   */
+  public async *runChain(
+    messages: BaseMessage[],
+    options: ChainOptions = {}
+  ): AsyncIterable<string> {
+    // 等待Agent初始化完成
+    await this.agent.ready;
+
+    // 创建上下文
+    const context: ChainContext = {
+      messages,
+      agent: this.agent,
+      options: {
+        maxSteps: options.maxSteps ?? 8,
+        strategy: options.strategy ?? config.reactStrategy,
+        reactVerbose: options.reactVerbose ?? false,
+      },
+    };
+
+    // 执行意图分析
+    const intentStep = this.steps[0];
+    if (intentStep) {
+      await intentStep.execute(context);
+    }
+
+    // 根据意图选择执行路径
+    if (context.intentResult && context.intentResult.mode === 'direct') {
+      const directStep = this.steps[1];
+      if (directStep) {
+        yield* directStep.execute(context) as AsyncIterable<string>;
+      }
+    } else {
+      // ReAct模式：执行ReAct + 增强回复
+      const reactStep = this.steps[2];
+      const enhanceStep = this.steps[3];
+      if (reactStep) {
+        yield* reactStep.execute(context) as AsyncIterable<string>;
+      }
+      if (enhanceStep) {
+        yield* enhanceStep.execute(context) as AsyncIterable<string>;
+      }
+    }
+  }
+} 

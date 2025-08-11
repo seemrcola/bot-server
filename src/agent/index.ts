@@ -15,3 +15,5 @@ export { PromptReActExecutor } from './executors/promptBaseToolUse.ReAct.js';
 export { FunctionReActExecutor } from './executors/functionCalling.ReAct.js';
 // 导出 Agent 管理器
 export { AgentManager } from './manager.js';
+// 导出 Agent 链式处理
+export { AgentChain } from './chain/index.js';
