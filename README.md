@@ -340,10 +340,17 @@ A: 可以继承ResponseEnhancementStep类或创建新的步骤类。
 ### Q: MCP工具如何实现流式输出？
 A: 需要工具端分片产出并通过MCP推送，客户端再提供AsyncIterable管道。
 
+### Q: 接下来做什么功能？
+A： 
+- 添加单元测试：为核心模块添加测试用例
+- 性能监控：添加请求耗时、成功率等指标
+- 配置验证：增强环境变量和配置的验证
+
 ## 📚 相关文档
 
 - [Agent模块文档](./src/agent/README.md)
 - [架构设计](./docs/architecture.md)
+- [链式处理架构](./docs/chain-architecture.md)
 - [流程图](./docs/flow.md)
 - [ReAct流程](./docs/react-flow.md)
 - [MCP协议文档](https://modelcontextprotocol.io/)
