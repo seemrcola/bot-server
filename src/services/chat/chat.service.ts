@@ -17,7 +17,7 @@ class ChatService {
     messages: BaseMessage[],
     options: { 
       maxSteps?: number; 
-      agentName: string; 
+      agentName?: string; 
       strategy?: AppConfig['reactStrategy'];
       reactVerbose?: boolean;
     }
