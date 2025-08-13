@@ -40,14 +40,20 @@ export class AgentChain {
     await this.agent.ready;
 
     // 创建上下文
+    const builtOptions: ChainOptions = {
+      maxSteps: options.maxSteps ?? 8,
+      strategy: options.strategy ?? config.reactStrategy,
+      reactVerbose: options.reactVerbose ?? false,
+    };
+    if (typeof options.temperature === 'number') {
+      // 仅在明确提供时设置，避免 exactOptionalPropertyTypes 触发
+      (builtOptions as any).temperature = options.temperature;
+    }
+
     const context: ChainContext = {
       messages,
       agent: this.agent,
-      options: {
-        maxSteps: options.maxSteps ?? 8,
-        strategy: options.strategy ?? config.reactStrategy,
-        reactVerbose: options.reactVerbose ?? false,
-      },
+      options: builtOptions,
     };
 
     // 执行意图分析

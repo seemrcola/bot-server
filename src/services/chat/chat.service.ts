@@ -20,6 +20,7 @@ class ChatService {
       agentName?: string; 
       strategy?: AppConfig['reactStrategy'];
       reactVerbose?: boolean;
+      temperature?: number;
     }
   ): Promise<AsyncIterable<string>> {
     const agentName = options.agentName || 'main-agent';
@@ -43,6 +44,9 @@ class ChatService {
     };
     if (options.strategy) {
       chainOptions.strategy = options.strategy;
+    }
+    if (typeof options.temperature === 'number') {
+      chainOptions.temperature = options.temperature;
     }
     return chain.runChain(messages, chainOptions);
   }

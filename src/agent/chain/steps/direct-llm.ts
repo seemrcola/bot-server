@@ -22,7 +22,13 @@ export class DirectLLMStep implements ChainStep {
       ...context.messages,
     ];
 
-    const stream = await context.agent.languageModel.stream(mdMessages);
+    // 若提供了温度，动态绑定模型参数
+    const baseModel: any = context.agent.languageModel as any;
+    const llmToUse: any = (typeof baseModel?.bind === 'function' && typeof context.options.temperature === 'number')
+      ? baseModel.bind({ temperature: context.options.temperature })
+      : baseModel;
+
+    const stream = await llmToUse.stream(mdMessages);
     for await (const chunk of stream) {
       const piece = extractText((chunk as any)?.content);
       if (piece) {

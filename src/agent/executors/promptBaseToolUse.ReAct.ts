@@ -23,6 +23,7 @@ export interface ReActStep {
 
 export interface ReActExecutorOptions {
   maxSteps?: number;
+  temperature?: number;
 }
 
 export class PromptReActExecutor {
@@ -101,11 +102,13 @@ export class PromptReActExecutor {
       let raw: any;
       try {
         /**
-         * llm.invoke的作用是 调用llm模型 并返回结果
-         * llm.invoke 的返回值格式如下：
-         * { content: string | Array<{ type: string; text: string }> }
+         * 根据传入的温度，尝试对模型进行参数绑定
          */
-        raw = await this.llm.invoke(promptMessages);
+        const baseModel: any = this.llm as any;
+        const llmToUse: any = (typeof baseModel?.bind === 'function' && typeof options.temperature === 'number')
+          ? baseModel.bind({ temperature: options.temperature })
+          : baseModel;
+        raw = await llmToUse.invoke(promptMessages);
       } catch (err) {
         const errMsg = `LLM 调用失败: ${err instanceof Error ? err.message : String(err)}`;
         logger.error(errMsg, err);

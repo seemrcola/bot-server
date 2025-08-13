@@ -14,6 +14,7 @@ export interface ChainOptions {
   maxSteps?: number;
   strategy?: 'prompt' | 'function';
   reactVerbose?: boolean;
+  temperature?: number;
 }
 
 export interface IntentResult {

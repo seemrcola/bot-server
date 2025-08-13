@@ -10,6 +10,7 @@ const MAX_STEPS = 8;
 
 export interface ReActExecutorOptions {
   maxSteps?: number;
+  temperature?: number;
 }
 
 export interface ExternalToolSpec {
@@ -51,9 +52,13 @@ export class FunctionReActExecutor {
         schema: t.inputSchema ?? {},
       }));
 
-      const modelWithTools: any = typeof (this.llm as any)?.bindTools === 'function'
+      // 优先绑定 tools，再按需绑定温度
+      const boundTools: any = typeof (this.llm as any)?.bindTools === 'function'
         ? (this.llm as any).bindTools(toolSpecs as any)
         : this.llm;
+      const modelWithTools: any = (typeof boundTools?.bind === 'function' && typeof options.temperature === 'number')
+        ? boundTools.bind({ temperature: options.temperature })
+        : boundTools;
 
       // 2) 调用模型
       let ai: any;
