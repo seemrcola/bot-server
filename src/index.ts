@@ -1,5 +1,5 @@
 import "dotenv/config";
-import express from 'express';
+import express, { type Express } from 'express';
 import cors from 'cors';
 import { ChatDeepSeek } from '@langchain/deepseek';
 import { config } from './config/index.js';
@@ -14,13 +14,15 @@ import path from 'path';
 import url from 'url';
 import getPort, { portNumbers } from 'get-port';
 
-const app = express();
+const app: Express = express();
 const logger = createLogger('MainServer');
 
 // --- 中间件配置 ---
 app.use(express.static('public'));
 app.use(express.json());
 app.use(cors());
+// 处理预检请求（OPTIONS）
+app.options('*', cors());
 
 // --- 路由配置 ---
 app.use('/', mainRouter);
@@ -64,31 +66,30 @@ async function loadAndStartExternalServers(): Promise<ExternalServerConfig[]> {
 // 资源池相关逻辑已移除
 
 /**
- * 启动 Express 服务并初始化应用服务。
+ * 在 Serverless 环境中：导出 app，由 Vercel 负责监听端口。
+ * 在本地/独立进程中：也允许直接 node 运行，这里不再主动 app.listen。
+ * 初始化 AgentManager 放在后台执行，冷启动时准备资源。
  */
-async function startServer() {
+(async () => {
   try {
     const llm = createLLM();
     const externalServers = await loadAndStartExternalServers();
-
-    // 创建 AgentManager 与默认 Agent
     const agentManager = new AgentManager();
     const mainAgent = new Agent(llm, externalServers, systemPrompt);
     agentManager.addAgent('main-agent', mainAgent);
     globals.agentManager = agentManager;
     logger.info('AgentManager 已创建并注册默认 Agent: main-agent');
-
-    // 资源池相关逻辑已移除
-
-    // 启动主 API 服务器
-    app.listen(config.port, () => {
-      logger.info('API 服务器正在监听', { 端口: config.port });
-    });
   } catch (error) {
-    logger.error('服务启动失败', error);
-    process.exit(1);
+    logger.error('初始化失败', error);
   }
+})();
+
+// 本地开发时主动监听端口；在 Vercel 等 Serverless 环境（NODE_ENV=production）由平台托管
+if (process.env['NODE_ENV'] !== 'production') {
+  const port = Number(process.env['PORT']) || config.port;
+  app.listen(port, () => {
+    logger.info('[dev] 本地 API 服务器已启动', { 端口: port });
+  });
 }
 
-// 启动服务
-startServer();
+export default app;
