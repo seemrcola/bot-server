@@ -62,11 +62,12 @@ flowchart TD
 
 #### ReAct执行流程图（更清晰）
 ```mermaid
-flowchart LR
+flowchart TD
   start([ReActExecutionStep.execute]) --> build[构造 ReAct 提示词]
   build --> invoke[LLM.invoke → JSON step]
   invoke --> decision{action}
 
+  %% tool_call 分支（向下）
   decision -- tool_call --> callTool[执行工具调用]
   callTool --> obs[记录 observation]
   obs --> stepInc[步数 +1]
@@ -74,6 +75,7 @@ flowchart LR
   check -- 否 --> invoke
   check -- 是 --> timeout[生成超时答案]
 
+  %% 终止类分支（与 tool_call 汇合）
   decision -- final_answer --> final[提取最终答案]
   decision -- user_input  --> wait[等待用户输入并终止]
 
