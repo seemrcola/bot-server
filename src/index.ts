@@ -1,14 +1,11 @@
 import "dotenv/config";
 import express, { type Express } from 'express';
 import cors from 'cors';
-import { ChatDeepSeek } from '@langchain/deepseek';
 import { config } from './config/index.js';
 import { mainRouter } from './routes/index.js';
 import { handleSuccess, handleError } from './middlewares/response.middleware.js';
 import { createLogger } from './utils/logger.js';
-import { Agent } from './agent/index.js';
-import { AgentManager } from './A2A/manager.js';
-import { systemPrompt } from './prompts/index.js';
+import { initLeaderA2A } from './A2A/bootstrap.js';
 import { globals } from './globals.js';
 import leader from './A2A/Leader/index.js';
 
@@ -29,15 +26,6 @@ app.use('/', mainRouter);
 app.use(handleSuccess);
 app.use(handleError);
 
-function createLLM(): ChatDeepSeek {
-  return new ChatDeepSeek({
-    apiKey: process.env['LLM_API_KEY'] || '',
-    model: process.env['LLM_MODEL'] || '',
-    temperature: 0.7,
-    streaming: true,
-    configuration: { baseURL: process.env['LLM_BASE_URL'] || '' }
-  });
-}
 
 /**
  * 在 Serverless 环境中：导出 app，由 Vercel 负责监听端口。
@@ -46,27 +34,9 @@ function createLLM(): ChatDeepSeek {
  */
 (async () => {
   try {
-    // 先创建出一个 leader agent 后续由他统筹和找到其它agent
-    // 创建llm
-    const llm = createLLM();
-    // 创建agent manager
-    const agentManager = new AgentManager();
-    // 启动leader的mcp服务
-    await leader.starter();
-    // 获取leader的mcp服务配置
-    const servers = leader.servers.map(server => ({
-      name: server.name,
-      version: '1.0.0',
-      url: server.url
-    }));
-    // 创建leader agent
-    const mainAgent = new Agent(llm, servers, systemPrompt);
-    // 注册leader agent
-    agentManager.registerLeader('main-agent', mainAgent, '系统的主控 Agent（Leader），负责默认路由与兜底处理');
-    // 注册全局变量
+    const agentManager = await initLeaderA2A();
     globals.agentManager = agentManager;
-
-    logger.info('AgentManager 已创建并注册 Leader: main-agent');
+    logger.info(`AgentManager 已创建并注册 Leader: ${leader.name}`);
   } catch (error) {
     logger.error('初始化失败', error);
   }

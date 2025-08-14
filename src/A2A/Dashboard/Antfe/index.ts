@@ -1,13 +1,12 @@
-import { startWeatherMCP } from './weather.js';
-import { startSystemMCP } from './system.js';
 import getPort, { portNumbers } from 'get-port';
-import { createLogger } from '../../utils/logger.js';
+import { startAntfeMCP } from './member.js';
+import { createLogger } from '../../../utils/logger.js';
 
-const logger = createLogger('Leader');
+const logger = createLogger('AntfeMCP');
+
 
 export const servers = [
-  { name: 'weather-mcp-server', starter: startWeatherMCP, url: '' },
-  { name: 'system-mcp-server', starter: startSystemMCP, url: '' },
+  { name: 'antfe-mcp-server', starter: startAntfeMCP, url: '' },
 ];
 
 export async function startLeaderServers() {
@@ -20,8 +19,8 @@ export async function startLeaderServers() {
 };
 
 export default {
-  name: 'leader-agent',
+  name: 'antfe-agent',
   servers,
   starter: startLeaderServers,
-  agentDescription: '系统的主控, 默认使用此agent做调度',
+  agentDescription: '当用户需要获取Antfe相关信息时, 使用此agent',
 };

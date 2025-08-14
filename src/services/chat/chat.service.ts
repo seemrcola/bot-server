@@ -2,6 +2,8 @@ import { BaseMessage } from "@langchain/core/messages";
 import { createLogger } from '../../utils/logger.js';
 import { globals } from '../../globals.js'; // 从全局容器导入
 import { AgentChain } from '../../agent/index.js';
+import { selectAgentForMessages } from '../../A2A/router.js';
+import { selectAgentByLLM } from '../../A2A/llm-router.js';
 
 const logger = createLogger('ChatService');
 
@@ -21,18 +23,31 @@ class ChatService {
       temperature?: number;
     }
   ): Promise<AsyncIterable<string>> {
-    const agentName = options.agentName || 'main-agent';
-
     const agentManager = globals.agentManager;
     if (!agentManager) {
       logger.error("严重错误: AgentManager 未初始化！");
       throw new Error("AgentManager 尚未初始化，无法处理聊天请求。");
     }
-    const agent = agentManager.getAgent(agentName);
-    if (!agent) {
-      logger.error(`未找到名为 ${agentName} 的 Agent！`);
-      throw new Error(`未找到名为 ${agentName} 的 Agent。`);
+    // 路由选择：优先显式指定；否则 LLM 精准路由；仍未命中再做名称/关键词回退
+    const explicit = (options.agentName ?? '').trim();
+    let chosenName: string | undefined;
+    let reason: string = '';
+    if (explicit && agentManager.getAgent(explicit)) {
+      chosenName = explicit;
+      reason = `explicit:${explicit}`;
+    } else {
+      const llmRoute = await selectAgentByLLM({ agentManager, messages });
+      if (llmRoute?.name && agentManager.getAgent(llmRoute.name)) {
+        chosenName = llmRoute.name;
+        reason = `llm:${llmRoute.reason}|confidence:${llmRoute.confidence}`;
+      } else {
+        const fallback = selectAgentForMessages({ agentManager, messages });
+        chosenName = fallback.name;
+        reason = `fallback:${fallback.reason}`;
+      }
     }
+    const agent = agentManager.getAgent(chosenName!)!;
+    logger.info(`使用 Agent: ${chosenName}（原因: ${reason}）`);
 
     // 创建AgentChain并执行
     const chain = new AgentChain(agent);

@@ -69,6 +69,7 @@ pnpm start
 
 - **默认API地址**: `http://localhost:3000`
 - **外部MCP服务**: 自动启动并注册（如 `node-external-server`、`weather-external-server`）
+- **A2A 路由**: 支持显式指定、LLM 精准路由与回退，详见 `docs/a2a-flow.md`
 
 ## 📡 API 文档
 
@@ -106,9 +107,7 @@ Content-Type: application/json
       "content": "给我打个招呼，然后获取当前天气信息"
     }
   ],
-  "reactVerbose": false,
-  "agentName": "main-agent",
-  "strategy": "prompt"
+  "reactVerbose": false
 }
 ```
 
@@ -117,8 +116,7 @@ Content-Type: application/json
 - `reactVerbose`（可选，默认false）：
   - `false`: 只返回最终增强后的答案
   - `true`: 返回详细的ReAct JSON步骤
-- `agentName`（可选，默认main-agent）: 选择要执行的Agent
-- `strategy`（可选）: `prompt`（基于提示词）或 `function`（基于function-calling）
+- `agentName`（可选）: 显式指定要执行的Agent；不传则走 LLM 精准路由与回退
 
 **响应：** `text/plain` 流式输出
 
@@ -138,8 +136,7 @@ curl -N -X POST http://localhost:3000/api/chat/stream \
   -H 'Content-Type: application/json' \
   -d '{
     "messages":[{"type":"human","content":"获取系统信息和天气信息"}],
-    "reactVerbose": true,
-    "strategy": "prompt"
+    "reactVerbose": true
   }'
 ```
 
@@ -180,6 +177,9 @@ AgentChain.runChain()
 | `LLM_MODEL` | `deepseek-chat` | 模型名称 |
 | `LLM_BASE_URL` | - | OpenAI兼容API地址 |
 | `REACT_STRATEGY` | `prompt` | 默认执行策略（固定为 prompt） |
+| `LLM_PROVIDER` | `deepseek` | LLM厂商选择（如 `deepseek`/`openai`） |
+| `LLM_TEMPERATURE` | `0.7` | 采样温度 |
+| `LLM_STREAMING` | `true` | 是否流式 |
 | `LOG_LEVEL` | `info` | 日志级别 |
 
 ## 🔌 MCP 工具开发
@@ -346,6 +346,8 @@ A：
 
 - [Agent模块文档](./src/agent/README.md)
 - [ReAct流程](./docs/react-flow.md)
+- [A2A 路由/启动流程](./docs/a2a-flow.md)
+- [A2A 模块说明](./src/A2A/README.md)
 - [MCP协议文档](https://modelcontextprotocol.io/)
 
 ## 🔄 版本历史
