@@ -53,8 +53,7 @@ Content-Type: application/json
 |------|------|------|--------|------|
 | `messages` | `Message[]` | ✅ | - | LangChain风格消息数组 |
 | `reactVerbose` | `boolean` | ❌ | `false` | 是否输出详细ReAct步骤 |
-| `agentName` | `string` | ❌ | `main-agent` | 选择要执行的Agent |
-| `strategy` | `string` | ❌ | `prompt` | 执行策略：固定 `prompt`（忽略其他值） |
+| `agentName` | `string` | ❌ | - | 显式指定要执行的 Agent；通常不指定，由系统进行 LLM 路由 |
 
 #### 消息格式
 
@@ -89,8 +88,7 @@ interface Message {
       "content": "获取当前天气和系统信息"
     }
   ],
-  "reactVerbose": true,
-  "strategy": "prompt"
+  "reactVerbose": true
 }
 ```
 
@@ -163,11 +161,7 @@ interface Message {
 ## 🛠️ 执行策略
 
 ### Prompt 模式
-- **适用场景**: 所有支持JSON输出的模型
-- **特点**: 通过提示词约束输出ReAct JSON格式
-- **优势**: 通用性强，兼容性好
-
-> 说明：Function 模式已移除，统一按 Prompt 执行。
+- 通过提示词约束输出 ReAct JSON 格式（当前仅保留 Prompt 模式）
 
 ## 🔌 MCP 工具
 
@@ -207,8 +201,7 @@ curl -N -X POST http://localhost:3000/api/chat/stream \
   -H 'Content-Type: application/json' \
   -d '{
     "messages":[{"type":"human","content":"获取系统信息和天气信息"}],
-    "reactVerbose": true,
-    "strategy": "prompt"
+    "reactVerbose": true
   }'
 ```
 
@@ -283,7 +276,6 @@ try {
 | 错误码 | 错误信息 | 解决方案 |
 |--------|----------|----------|
 | 400 | `messages are required...` | 确保请求包含有效的messages数组 |
-| 400 | `Invalid strategy` | 使用 `prompt` 或 `function` 作为strategy值 |
 | 500 | `AgentManager not initialized` | 检查服务启动状态 |
 | 500 | `Agent not found` | 检查agentName参数 |
 
@@ -303,7 +295,9 @@ try {
 | `LLM_API_KEY` | - | 大模型API密钥 |
 | `LLM_MODEL` | `deepseek-chat` | 模型名称 |
 | `LLM_BASE_URL` | - | OpenAI兼容API地址 |
-| `REACT_STRATEGY` | `prompt` | 默认执行策略（固定为 prompt） |
+| `LLM_PROVIDER` | `deepseek` | LLM厂商选择（如 `deepseek`/`openai`） |
+| `LLM_TEMPERATURE` | `0.7` | 采样温度 |
+| `LLM_STREAMING` | `true` | 是否流式 |
 | `LOG_LEVEL` | `info` | 日志级别 |
 
 ## 📊 性能指标

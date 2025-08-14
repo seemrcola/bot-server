@@ -35,14 +35,13 @@ src/A2A/
 ### 路由策略（从高到低优先级）
 
 - 显式路由：请求体有 `agentName` 且存在 → 直接命中
-- LLM 精准路由（优先）：
+- LLM 精准路由（优先且唯一判定）：
   - `A2A/llm-router.ts` 使用 Leader 的 LLM，让模型在“候选子 Agent + Leader”中输出 JSON：
     `{ target: string; reason: string; confidence: number }`
   - 当 `target` 合法且 `confidence ≥ 0.5`（默认阈值）时采用
-- 规则回退：`A2A/router.ts` 名称/关键词/别名包含式匹配
 - 最终回退：Leader 兜底（随后由链式处理决定是否工具调用）
 
-集成点：`services/chat/chat.service.ts` 内选择路由并创建 `AgentChain` 执行。
+集成点：`services/chat/chat.service.ts` 内执行“显式→LLM→Leader兜底”的路由逻辑，并创建 `AgentChain` 执行。
 
 ### 子 Agent 注册与元信息（keywords/aliases）
 

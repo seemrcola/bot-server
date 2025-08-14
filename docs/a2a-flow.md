@@ -5,16 +5,13 @@ flowchart TD
   A[HTTP 请求 /api/chat/stream] --> B[ChatController]
   B --> C[ChatService.runChainStream]
 
-  subgraph 路由决策
+  subgraph 路由决策（无关键字回退）
     C --> D{显式 agentName?}
     D -- 是 --> E[使用显式 Agent]
     D -- 否 --> F[LLM 精准路由]
     F --> G{target 可信?}
     G -- 是 --> H[使用 LLM 选择的 Agent]
-    G -- 否 --> I[名称/关键词规则回退]
-    I --> J{匹配到子 Agent?}
-    J -- 是 --> K[使用规则匹配的子 Agent]
-    J -- 否 --> L[回退 Leader]
+    G -- 否 --> L[回退 Leader]
   end
 
   subgraph 执行链

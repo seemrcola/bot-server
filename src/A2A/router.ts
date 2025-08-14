@@ -1,14 +1,13 @@
-import { BaseMessage } from "@langchain/core/messages";
-import { Agent } from "../agent/agent.js";
+import { BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { AgentManager } from "./manager.js";
 import { createLogger } from "../utils/logger.js";
 
-const logger = createLogger('AgentRouter');
+const logger = createLogger('LLMAgentRouter');
 
-export interface RouteResult {
+export interface LLMRouteResult {
   name: string;
-  agent: Agent;
   reason: string;
+  confidence: number;
 }
 
 function getLastHumanText(messages: BaseMessage[]): string {
@@ -24,56 +23,87 @@ function getLastHumanText(messages: BaseMessage[]): string {
 }
 
 /**
- * 基于消息内容在已注册的子 Agent 中做一个最小可用的路由：
- * - 若显式指定 agentName，则直接返回对应 agent（若存在）
- * - 否则：若消息文本包含某个子 Agent 的名称（不区分大小写），选择该子 Agent
- * - 否则：回退到 Leader
+ * 使用 LLM 进行“精准路由”：在已注册的子 Agent 与 Leader 之间选择最合适的 Agent。
+ * 仅输出一个 JSON：{ target: string; reason: string; confidence: number }
  */
-export function selectAgentForMessages(params: {
+export async function selectAgentByLLM(params: {
   agentManager: AgentManager;
   messages: BaseMessage[];
-  agentName?: string | undefined;
-}): RouteResult {
-  const { agentManager, messages } = params;
-  const requested = (params.agentName ?? '').trim();
+  threshold?: number;
+}): Promise<LLMRouteResult> {
+  const { agentManager } = params;
+  const threshold = typeof params.threshold === 'number' ? params.threshold : 0.5;
 
-  // 1) 显式指定优先
-  if (requested) {
-    const chosen = agentManager.getAgent(requested);
-    if (chosen) {
-      return { name: requested, agent: chosen, reason: `explicit:${requested}` } as RouteResult;
-    }
-  }
-
-  // 2) 子 agent 关键词匹配：
-  //    - 名称包含（不区分大小写）
-  //    - 元信息 keywords/aliases 命中
   const leaderName = agentManager.getLeaderName();
-  if (leaderName) {
-    const text = getLastHumanText(messages).toLowerCase();
-    const subs = agentManager.listSubAgents(leaderName);
-    for (const sub of subs) {
-      const hitName = text.includes(sub.name.toLowerCase());
-      const keywords = sub.meta?.keywords ?? [];
-      const aliases = sub.meta?.aliases ?? [];
-      const hitKeyword = keywords.some(k => text.includes(k.toLowerCase()));
-      const hitAlias = aliases.some(a => text.includes(a.toLowerCase()));
-      if (hitName || hitKeyword || hitAlias) {
-        const a = agentManager.getAgent(sub.name);
-        if (a) {
-          logger.info(`路由到子 Agent: ${sub.name}（命中：${hitName ? 'name' : hitKeyword ? 'keyword' : 'alias'}）`);
-          return { name: sub.name, agent: a, reason: `name:${sub.name}` } as RouteResult;
-        }
-      }
-    }
-  }
-
-  // 3) 回退 Leader
   const leader = agentManager.getLeader();
   if (!leader || !leaderName) {
     throw new Error('未找到可用的 Leader Agent。');
   }
-  return { name: leaderName, agent: leader, reason: 'fallback:leader' } as RouteResult;
+
+  // 收集候选子 Agent 列表
+  const subs = agentManager.listSubAgents(leaderName);
+  const catalog = subs.map(s => ({
+    name: s.name,
+    description: s.description || '',
+    keywords: s.meta?.keywords || [],
+    aliases: s.meta?.aliases || [],
+  }));
+
+  const userText = getLastHumanText(params.messages);
+
+  const sys = new SystemMessage([
+    '你是一个路由器。你的任务：根据用户的最后一条需求文本，在候选 Agent 中选择最合适的一个来处理。',
+    '候选列表包含名称、简介、关键词、别名。',
+    '必须只输出一个 JSON 对象，不要额外文本或代码块。',
+    '{',
+    '  "target": "agent-name 或 leader-agent",',
+    '  "reason": "简述选择原因",',
+    '  "confidence": 0.0 到 1.0 之间的数值',
+    '}',
+    '选择规则：',
+    '- 若用户需求与某个子 Agent 的名称/关键词/别名强相关，则选该子 Agent；',
+    '- 否则选择 leader-agent 作为兜底。',
+  ].join('\n'));
+
+  const human = new HumanMessage([
+    '用户最后一条消息：',
+    JSON.stringify(userText),
+    '\n\n候选子 Agent 列表：',
+    JSON.stringify(catalog, null, 2),
+    '\n\nLeader 名称：',
+    leaderName,
+    '\n\n请输出 JSON：',
+  ].join(''));
+
+  let raw: any;
+  try {
+    raw = await leader.languageModel.invoke([sys, human]);
+  } catch (e) {
+    logger.warn('LLM 路由调用失败，回退 Leader。', e);
+    return { name: leaderName, reason: 'fallback:invoke_error', confidence: 0 };
+  }
+
+  const text = String((raw as any)?.content ?? '').trim();
+  try {
+    const start = text.indexOf('{');
+    const end = text.lastIndexOf('}');
+    const slice = start >= 0 && end >= start ? text.slice(start, end + 1) : text;
+    const obj = JSON.parse(slice) as { target?: string; reason?: string; confidence?: number };
+    const target = (obj.target || '').trim();
+    const reason = typeof obj.reason === 'string' ? obj.reason : '';
+    const confidence = typeof obj.confidence === 'number' ? obj.confidence : 0;
+
+    // 置信度检查与存在性检查
+    if (!target) return { name: leaderName, reason: 'fallback:empty_target', confidence: 0 };
+    const targetExists = target === leaderName || !!agentManager.getAgent(target);
+    if (!targetExists || confidence < threshold) {
+      return { name: leaderName, reason: 'fallback:low_confidence_or_not_found', confidence };
+    }
+    return { name: target, reason: reason || 'llm', confidence };
+  } catch (e) {
+    logger.warn('LLM 路由结果解析失败，回退 Leader。', e);
+    return { name: leaderName, reason: 'fallback:parse_error', confidence: 0 };
+  }
 }
 
 
