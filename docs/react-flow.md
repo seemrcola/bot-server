@@ -60,27 +60,29 @@ flowchart TD
 3. **响应增强阶段**：`ResponseEnhancementStep` 将ReAct执行结果转换为用户友好的Markdown格式
 4. **输出控制**：控制器按 `reactVerbose` 配置决定输出内容
 
-#### ReAct执行流程图
+#### ReAct执行流程图（更清晰）
 ```mermaid
-flowchart TD
-  A["ReActExecutionStep.execute"] --> B["构造ReAct提示词"]
-  B --> C["LLM.invoke -> JSON step"]
-  C --> D{"action?"}
-  D -- "tool_call" --> E["执行工具调用"]
-  D -- "final_answer" --> F["提取最终答案"]
-  D -- "user_input" --> G["等待用户输入并终止"]
+flowchart LR
+  start([ReActExecutionStep.execute]) --> build[构造 ReAct 提示词]
+  build --> invoke[LLM.invoke → JSON step]
+  invoke --> decision{action}
 
-  E --> H["记录observation"]
-  H --> C
-  F --> I["终止ReAct循环"]
-  G --> I
+  decision -- tool_call --> callTool[执行工具调用]
+  callTool --> obs[记录 observation]
+  obs --> stepInc[步数 +1]
+  stepInc --> check{是否达到 maxSteps?}
+  check -- 否 --> invoke
+  check -- 是 --> timeout[生成超时答案]
 
-  C --> J{"达到maxSteps?"}
-  J -- "是" --> K["生成超时答案"]
-  J -- "否" --> C
+  decision -- final_answer --> final[提取最终答案]
+  decision -- user_input  --> wait[等待用户输入并终止]
 
-  I --> L["返回ReAct结果"]
-  L --> M["ResponseEnhancementStep增强"]
+  timeout --> stop[终止 ReAct 循环]
+  final   --> stop
+  wait    --> stop
+
+  stop --> enhance[ResponseEnhancementStep 增强]
+  enhance --> output[流式输出]
 ```
 
 <!-- 仅保留 Prompt 模式；Function 模式已移除 -->
