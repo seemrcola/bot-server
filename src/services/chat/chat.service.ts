@@ -2,7 +2,6 @@ import { BaseMessage } from "@langchain/core/messages";
 import { createLogger } from '../../utils/logger.js';
 import { globals } from '../../globals.js'; // 从全局容器导入
 import { AgentChain } from '../../agent/index.js';
-import type { AppConfig } from '../../config/index.js';
 
 const logger = createLogger('ChatService');
 
@@ -18,7 +17,6 @@ class ChatService {
     options: { 
       maxSteps?: number; 
       agentName?: string; 
-      strategy?: AppConfig['reactStrategy'];
       reactVerbose?: boolean;
       temperature?: number;
     }
@@ -42,9 +40,6 @@ class ChatService {
       maxSteps: options.maxSteps ?? 8,
       reactVerbose: options.reactVerbose ?? false
     };
-    if (options.strategy) {
-      chainOptions.strategy = options.strategy;
-    }
     if (typeof options.temperature === 'number') {
       chainOptions.temperature = options.temperature;
     }

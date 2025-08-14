@@ -6,13 +6,11 @@ import { config } from './config/index.js';
 import { mainRouter } from './routes/index.js';
 import { handleSuccess, handleError } from './middlewares/response.middleware.js';
 import { createLogger } from './utils/logger.js';
-import { Agent, ExternalServerConfig, AgentManager } from './agent/index.js';
+import { Agent } from './agent/index.js';
+import { AgentManager } from './A2A/manager.js';
 import { systemPrompt } from './prompts/index.js';
 import { globals } from './globals.js';
-import fs from 'fs';
-import path from 'path';
-import url from 'url';
-import getPort, { portNumbers } from 'get-port';
+import leader from './A2A/Leader/index.js';
 
 const app: Express = express();
 const logger = createLogger('MainServer');
@@ -34,36 +32,12 @@ app.use(handleError);
 function createLLM(): ChatDeepSeek {
   return new ChatDeepSeek({
     apiKey: process.env['LLM_API_KEY'] || '',
-    model: process.env['LLM_MODEL'] || 'deepseek-chat',
+    model: process.env['LLM_MODEL'] || '',
     temperature: 0.7,
     streaming: true,
     configuration: { baseURL: process.env['LLM_BASE_URL'] || '' }
   });
 }
-
-async function loadAndStartExternalServers(): Promise<ExternalServerConfig[]> {
-  const externalDir = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), './external');
-  const files = fs.readdirSync(externalDir).filter(f => f.endsWith('.ts') || f.endsWith('.js'));
-  const host = 'localhost';
-  const externalServers: ExternalServerConfig[] = [];
-  for (const file of files) {
-    const modPath = path.join(externalDir, file);
-    const mod = await import(url.pathToFileURL(modPath).href);
-    const starter = mod.startExternalServer;
-    if (typeof starter === 'function') {
-      const port = await getPort({ port: portNumbers(3002, 3999) });
-      await starter(port, host);
-      const name = path.parse(file).name;
-      externalServers.push({ name, version: '1.0.0', url: `http://${host}:${port}/mcp` });
-      logger.info('外部 MCP 服务已启动', { name, port });
-    } else {
-      logger.warn(`外部模块 ${file} 未导出可用的启动函数，已跳过`);
-    }
-  }
-  return externalServers;
-}
-
-// 资源池相关逻辑已移除
 
 /**
  * 在 Serverless 环境中：导出 app，由 Vercel 负责监听端口。
@@ -72,13 +46,27 @@ async function loadAndStartExternalServers(): Promise<ExternalServerConfig[]> {
  */
 (async () => {
   try {
+    // 先创建出一个 leader agent 后续由他统筹和找到其它agent
+    // 创建llm
     const llm = createLLM();
-    const externalServers = await loadAndStartExternalServers();
+    // 创建agent manager
     const agentManager = new AgentManager();
-    const mainAgent = new Agent(llm, externalServers, systemPrompt);
-    agentManager.addAgent('main-agent', mainAgent);
+    // 启动leader的mcp服务
+    await leader.starter();
+    // 获取leader的mcp服务配置
+    const servers = leader.servers.map(server => ({
+      name: server.name,
+      version: '1.0.0',
+      url: server.url
+    }));
+    // 创建leader agent
+    const mainAgent = new Agent(llm, servers, systemPrompt);
+    // 注册leader agent
+    agentManager.registerLeader('main-agent', mainAgent, '系统的主控 Agent（Leader），负责默认路由与兜底处理');
+    // 注册全局变量
     globals.agentManager = agentManager;
-    logger.info('AgentManager 已创建并注册默认 Agent: main-agent');
+
+    logger.info('AgentManager 已创建并注册 Leader: main-agent');
   } catch (error) {
     logger.error('初始化失败', error);
   }

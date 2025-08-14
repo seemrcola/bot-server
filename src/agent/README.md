@@ -17,19 +17,19 @@ Agent Module/
 │       └── response-enhancement.ts # 响应增强
 ├── executors/            # 执行器（底层实现）
 │   ├── promptBaseToolUse.ReAct.ts  # Prompt模式ReAct
-│   ├── functionCalling.ReAct.ts    # Function模式ReAct
 │   └── utils.ts          # 执行器工具函数
-├── mcp/                  # MCP协议支持
-│   ├── client/           # MCP客户端
-│   └── server/           # MCP服务端
-└── manager.ts            # Agent管理器
+└── mcp/                  # MCP协议支持
+    ├── client/           # MCP客户端
+    └── server/           # MCP服务端
 ```
+
+> 说明：为保持 `agent` 模块的单一职责与可复用性，已移除内部的 Agent 管理器。多智能体（A2A）管理请见 `src/A2A/manager.ts`。
 
 ## 🚀 核心特性
 
 - **链式处理架构**：意图分析 → 执行 → 增强回复
 - **智能意图识别**：自动判断是否需要工具调用
-- **多执行策略**：支持Prompt和Function两种ReAct模式
+- **执行策略**：统一 Prompt 模式（已移除 Function 模式）
 - **流式输出**：完整的异步流式处理
 - **MCP工具集成**：自动发现和调用外部工具
 - **响应增强**：对ReAct结果进行优化和格式化
@@ -90,11 +90,13 @@ await agent.ready;
 const chain = new AgentChain(agent);
 const messages = [new HumanMessage('获取当前天气和系统信息')];
 
-for await (const chunk of chain.runChain(messages, {
+// 仅保留 Prompt 策略
+const stream = await chain.runChain(messages, {
   maxSteps: 8,
-  strategy: 'prompt',
-  reactVerbose: false
-})) {
+  reactVerbose: false,
+});
+
+for await (const chunk of stream) {
   process.stdout.write(chunk);
 }
 ```
@@ -138,9 +140,9 @@ class AgentChain {
 **ChainOptions 接口：**
 ```typescript
 interface ChainOptions {
-  maxSteps?: number;           // 最大执行步数，默认8
-  strategy?: 'prompt' | 'function';  // 执行策略
-  reactVerbose?: boolean;      // 是否输出详细ReAct步骤
+  maxSteps?: number;
+  reactVerbose?: boolean;
+  temperature?: number;
 }
 ```
 
@@ -176,17 +178,7 @@ interface ChainOptions {
 
 ## 🛠️ 执行策略
 
-### Prompt 模式
-- **适用场景**：所有支持JSON输出的模型
-- **特点**：通过提示词约束输出ReAct JSON格式
-- **优势**：通用性强，兼容性好
-- **劣势**：Token开销略高
-
-### Function 模式
-- **适用场景**：支持Function Calling的模型
-- **特点**：使用模型原生的tool_call功能
-- **优势**：更结构化，Token效率高
-- **劣势**：依赖模型能力
+仅保留 Prompt 模式：通过提示词约束输出 ReAct JSON；Function 模式已移除。
 
 ## 📝 ReAct JSON 格式
 
@@ -315,8 +307,6 @@ A: 支持所有符合LangChain BaseLanguageModel接口的模型。
 
 ## 📚 相关文档
 
-- [架构设计](./docs/architecture.md)
-- [流程图](./docs/flow.md)
 - [ReAct流程](./docs/react-flow.md)
 - [MCP协议文档](https://modelcontextprotocol.io/)
 

@@ -42,7 +42,6 @@ export class AgentChain {
     // 创建上下文
     const builtOptions: ChainOptions = {
       maxSteps: options.maxSteps ?? 8,
-      strategy: options.strategy ?? config.reactStrategy,
       reactVerbose: options.reactVerbose ?? false,
     };
     if (typeof options.temperature === 'number') {

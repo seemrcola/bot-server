@@ -19,7 +19,7 @@ agent/
 │       └── response-enhancement.ts # 响应增强
 ├── executors/            # 执行器
 │   ├── promptBaseToolUse.ReAct.ts  # Prompt模式ReAct
-│   ├── functionCalling.ReAct.ts    # Function模式ReAct
+│   ├── functionCalling.ReAct.ts    # 已移除，统一使用 Prompt 模式
 │   └── utils.ts          # 执行器工具
 ├── mcp/                  # MCP协议支持
 │   ├── client/           # MCP客户端
@@ -112,7 +112,7 @@ class AgentChain {
 ```typescript
 interface ChainOptions {
   maxSteps?: number;           // 最大执行步数，默认8
-  strategy?: 'prompt' | 'function';  // 执行策略
+  // 统一使用 Prompt 策略，已移除 function
   reactVerbose?: boolean;      // 是否输出详细ReAct步骤
 }
 ```
@@ -128,7 +128,6 @@ const messages = [new HumanMessage('你好，请介绍一下自己')];
 
 for await (const chunk of chain.runChain(messages, {
   maxSteps: 8,
-  strategy: 'prompt',
   reactVerbose: false
 })) {
   process.stdout.write(chunk);

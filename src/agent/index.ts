@@ -11,9 +11,5 @@ export { MCPServer } from './mcp/server/index.js';
 export type { ExternalServerConfig } from './mcp/client/manager.js';
 // 导出 ReAct 执行器（Prompt 模式）
 export { PromptReActExecutor } from './executors/promptBaseToolUse.ReAct.js';
-// 导出 ReAct 执行器（Function Calling 模式）
-export { FunctionReActExecutor } from './executors/functionCalling.ReAct.js';
-// 导出 Agent 管理器
-export { AgentManager } from './manager.js';
 // 导出 Agent 链式处理
 export { AgentChain } from './chain/index.js';

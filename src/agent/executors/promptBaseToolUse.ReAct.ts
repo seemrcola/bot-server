@@ -206,8 +206,6 @@ function normalizeStep(obj: any): ReActStep {
   return step;
 }
 
-// moved common helpers to ./utils
-
 function stringifySafe(message: BaseMessage): string {
   try {
     return JSON.stringify({

@@ -54,7 +54,7 @@ Content-Type: application/json
 | `messages` | `Message[]` | ✅ | - | LangChain风格消息数组 |
 | `reactVerbose` | `boolean` | ❌ | `false` | 是否输出详细ReAct步骤 |
 | `agentName` | `string` | ❌ | `main-agent` | 选择要执行的Agent |
-| `strategy` | `string` | ❌ | `prompt` | 执行策略：`prompt` 或 `function` |
+| `strategy` | `string` | ❌ | `prompt` | 执行策略：固定 `prompt`（忽略其他值） |
 
 #### 消息格式
 
@@ -167,10 +167,7 @@ interface Message {
 - **特点**: 通过提示词约束输出ReAct JSON格式
 - **优势**: 通用性强，兼容性好
 
-### Function 模式
-- **适用场景**: 支持Function Calling的模型
-- **特点**: 使用模型原生的tool_call功能
-- **优势**: 更结构化，Token效率高
+> 说明：Function 模式已移除，统一按 Prompt 执行。
 
 ## 🔌 MCP 工具
 
@@ -306,7 +303,7 @@ try {
 | `LLM_API_KEY` | - | 大模型API密钥 |
 | `LLM_MODEL` | `deepseek-chat` | 模型名称 |
 | `LLM_BASE_URL` | - | OpenAI兼容API地址 |
-| `REACT_STRATEGY` | `prompt` | 默认执行策略 |
+| `REACT_STRATEGY` | `prompt` | 默认执行策略（固定为 prompt） |
 | `LOG_LEVEL` | `info` | 日志级别 |
 
 ## 📊 性能指标

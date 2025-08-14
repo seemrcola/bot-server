@@ -12,7 +12,6 @@ export interface ChainContext {
 
 export interface ChainOptions {
   maxSteps?: number;
-  strategy?: 'prompt' | 'function';
   reactVerbose?: boolean;
   temperature?: number;
 }

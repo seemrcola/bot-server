@@ -8,7 +8,7 @@
 - **ReAct决策循环**：支持多次 `tool_call` → `observation` → `final_answer`
 - **MCP外部工具**：自动发现和调用外部MCP工具服务
 - **流式输出**：完整的HTTP文本流输出
-- **多执行策略**：支持Prompt和Function两种ReAct模式
+- **执行策略**：统一为 Prompt 模式（已移除 Function 模式）
 - **响应增强**：自动优化和格式化ReAct结果
 
 ## 🏗️ 架构概览
@@ -169,11 +169,7 @@ AgentChain.runChain()
 - **优势**: 通用性强，兼容性好
 - **劣势**: Token开销略高
 
-### Function 模式
-- **适用场景**: 支持Function Calling的模型
-- **特点**: 使用模型原生的tool_call功能
-- **优势**: 更结构化，Token效率高
-- **劣势**: 依赖模型能力
+> 说明：已删去 Function 模式；即使客户端传入 `function`，也会走 Prompt 模式。
 
 ## 🔧 环境变量
 
@@ -183,7 +179,7 @@ AgentChain.runChain()
 | `LLM_API_KEY` | - | 大模型API密钥 |
 | `LLM_MODEL` | `deepseek-chat` | 模型名称 |
 | `LLM_BASE_URL` | - | OpenAI兼容API地址 |
-| `REACT_STRATEGY` | `prompt` | 默认执行策略 |
+| `REACT_STRATEGY` | `prompt` | 默认执行策略（固定为 prompt） |
 | `LOG_LEVEL` | `info` | 日志级别 |
 
 ## 🔌 MCP 工具开发
@@ -349,9 +345,6 @@ A：
 ## 📚 相关文档
 
 - [Agent模块文档](./src/agent/README.md)
-- [架构设计](./docs/architecture.md)
-- [链式处理架构](./docs/chain-architecture.md)
-- [流程图](./docs/flow.md)
 - [ReAct流程](./docs/react-flow.md)
 - [MCP协议文档](https://modelcontextprotocol.io/)
 
