@@ -7,10 +7,10 @@ import { createLogger } from '../utils/logger.js';
 const logger = createLogger('A2AOrchestrator');
 
 export interface OrchestratorOptions {
-  maxSteps?: number | undefined;
-  reactVerbose?: boolean | undefined;
-  temperature?: number | undefined;
-  agentName?: string | undefined;
+  maxSteps?: number | undefined;              // 最大执行步数，默认8
+  reactVerbose?: boolean | undefined;         // 是否输出详细ReAct步骤
+  temperature?: number | undefined;           // 采样温度
+  agentName?: string | undefined;             // 显式指定要执行的 Agent；通常不指定，由系统进行 LLM 路由
 }
 
 export async function runWithLeader(
@@ -23,28 +23,24 @@ export async function runWithLeader(
     throw new Error('AgentManager 尚未初始化');
   }
 
-  const explicit = (options.agentName ?? '').trim();
-  let chosenName: string | undefined;
-  let reason = '';
+  // 显式指定 Agent 优先级最高
+  const explicit = (options.agentName ?? '').trim();  // 显式指定要执行的 Agent
+  let chosenName: string | undefined;                 // 最终选定的 Agent 名称
+  let reason = '';                                    // 选择原因
 
+  // 如果有显式指定，则直接使用
   if (explicit && agentManager.getAgent(explicit)) {
     chosenName = explicit;
     reason = `explicit:${explicit}`;
-  } else {
-    const llmRoute = await selectAgentByLLM({ agentManager, messages });
-    if (llmRoute?.name && agentManager.getAgent(llmRoute.name)) {
-      chosenName = llmRoute.name;
-      reason = `llm:${llmRoute.reason}|confidence:${llmRoute.confidence}`;
-    } else {
-      const leaderName = agentManager.getLeaderName();
-      const leader = leaderName ? agentManager.getAgent(leaderName) : undefined;
-      if (!leader || !leaderName) {
-        logger.error('未找到可用的 Leader Agent！');
-        throw new Error('未找到可用的 Leader Agent。');
-      }
-      chosenName = leaderName;
-      reason = 'fallback:leader';
+  } 
+  // 否则使用 LLM 路由
+  else {
+    const [err, data] = await selectAgentByLLM({ agentManager, messages });
+    if (err) {
+      throw new Error(`route_error: ${err}`);
     }
+    chosenName = data!.name;
+    reason = `llm:${data!.reason}|confidence:${data!.confidence}`;
   }
 
   const agent = agentManager.getAgent(chosenName!)!;

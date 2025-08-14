@@ -1,12 +1,16 @@
 import { Agent } from '../agent/index.js';
 import { AgentManager } from './manager.js';
 import leader from './Leader/index.js';
-const defaultSystemPrompt = `你是一个乐于助人的 AI 助手。回复内容请使用 Markdown 格式。`;
 import { createLogger } from '../utils/logger.js';
 import { ChatDeepSeek } from '@langchain/deepseek';
 import { dashboards } from './Dashboard/index.js';
 
 const logger = createLogger('A2ABootstrap');
+
+const defaultSystemPrompt = `
+你是一个乐于助人的 AI 助手。回复内容请使用 Markdown 格式。`
+;
+
 
 function createLLM() {
   return new ChatDeepSeek({
@@ -52,10 +56,16 @@ export async function initLeaderA2A(): Promise<AgentManager> {
       const subServers = dashboard.servers.map(s => ({ name: s.name, version: '1.0.0', url: s.url }));
       const subAgent = new Agent(createLLM(), subServers, `你是 ${dashboard.name} 的专属 Agent，用于处理该域问题。`);
       await subAgent.ready;
-      agentManager.registerSubAgent(leader.name, dashboard.name, subAgent, dashboard.agentDescription || '', {
-        keywords: [dashboard.name],
-        aliases: [dashboard.name.replace(/-agent$/i, '')]
-      });
+      agentManager.registerSubAgent(
+        leader.name,                       // 父 Agent 名称
+        dashboard.name,                    // 子 Agent 名称
+        subAgent,                          // 子 Agent 实例
+        dashboard.agentDescription || '',  // 子 Agent 描述
+        {                                  // 子 Agent 元数据
+          keywords: [dashboard.name],
+          aliases: [dashboard.name.replace(/-agent$/i, '')]
+        }
+      );
       logger.info(`子 Agent 已初始化并注册: ${dashboard.name}`);
     } catch (e) {
       logger.warn(`注册子 Agent 失败：${dashboard?.name ?? 'unknown'}`, e);
