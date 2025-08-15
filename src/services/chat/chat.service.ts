@@ -2,23 +2,16 @@ import { BaseMessage } from "@langchain/core/messages";
 import { createLogger } from '../../utils/logger.js';
 import { globals } from '../../globals.js'; // 从全局容器导入
 import { runWithLeader } from '../../A2A/orchestrator.js';
-import { initLeaderA2A } from '../../A2A/bootstrap.js';
 
 const logger = createLogger('ChatService');
 
-let bootstrapReadyPromise: Promise<void> | null = null;
 async function ensureBootstrap(): Promise<void> {
   if (globals.agentManager) return;
-  if (!bootstrapReadyPromise) {
-    bootstrapReadyPromise = (async () => {
-      const agentManager = await initLeaderA2A();
-      globals.agentManager = agentManager;
-    })().catch((err) => {
-      bootstrapReadyPromise = null;
-      throw err;
-    });
+  if (globals.agentManagerReady) {
+    await globals.agentManagerReady;
+    return;
   }
-  await bootstrapReadyPromise;
+  throw new Error('AgentManager 尚未初始化（缺少全局就绪 Promise）。');
 }
 
 class ChatService {

@@ -6,6 +6,7 @@ import { AgentManager } from './A2A/manager.js';
 
 interface GlobalContainer {
   agentManager?: AgentManager;
+  agentManagerReady?: Promise<void>;
 }
 
 export const globals: GlobalContainer = {};

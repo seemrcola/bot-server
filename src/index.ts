@@ -34,16 +34,20 @@ app.use(handleError);
  */
 (async () => {
   try {
-    const agentManager = await initLeaderA2A();
-    globals.agentManager = agentManager;
-    logger.info(`AgentManager 已创建并注册 Leader: ${leader.name}`);
+    // 构建全局就绪 Promise（serverless 冷启动集中初始化）
+    globals.agentManagerReady = (async () => {
+      const agentManager = await initLeaderA2A();
+      globals.agentManager = agentManager;
+      logger.info(`AgentManager 已创建并注册 Leader: ${leader.name}`);
+    })();
+    await globals.agentManagerReady;
   } catch (error) {
     logger.error('初始化失败', error);
   }
 })();
 
 // 本地开发时主动监听端口；在 Vercel 等 Serverless 环境（NODE_ENV=production）由平台托管
-if (process.env['NODE_ENV'] !== 'production') {
+if (process.env['VERCEL'] !== '1') {
   const port = Number(process.env['PORT']) || config.port;
   app.listen(port, () => {
     logger.info('[dev] 本地 API 服务器已启动', { 端口: port });
