@@ -30,7 +30,8 @@ src/A2A/
 - 从 `A2A/Dashboard/index.ts` 读取子 Agent 列表，逐个启动其 MCP、构建子 Agent、注册为 Leader 的子 Agent
 
 2) 入口 `src/index.ts`
-- 仅调用 `initLeaderA2A()` 完成上面流程；入口专注 Web 生命周期
+- 启动时构建全局就绪 Promise：`globals.agentManagerReady = initLeaderA2A()`；完成后写入 `globals.agentManager`
+- 入口专注 Web 生命周期；Serverless 环境下不主动 `app.listen`，由平台托管（通过 `VERCEL=1` 判断）
 
 ### 路由策略（从高到低优先级）
 

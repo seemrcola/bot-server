@@ -32,7 +32,7 @@ flowchart TD
 
   %% Bootstrap
   subgraph BOOT["A2A Bootstrap"]
-    T["initLeaderA2A"] --> U["Start Leader MCP"]
+    T["initLeaderA2A (globals.agentManagerReady)"] --> U["Start Leader MCP"]
     U --> V["Create LLM"]
     V --> W["Register Leader"]
     W --> X["Load Dashboards"]

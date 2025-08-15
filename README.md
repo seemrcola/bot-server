@@ -71,6 +71,12 @@ pnpm start
 - **外部MCP服务**: 自动启动并注册（如 `node-external-server`、`weather-external-server`）
 - **A2A 路由**: 支持显式指定、LLM 精准路由与回退，详见 `docs/a2a-flow.md`
 
+## ☁️ Serverless 部署与初始化
+
+- 在 Serverless（如 Vercel）环境中，`src/index.ts` 启动阶段会构建全局就绪 Promise `globals.agentManagerReady`，完成后将实例写入 `globals.agentManager`。
+- 请求路径不再触发初始化；`ChatService` 在执行前会统一 `await globals.agentManagerReady`，避免冷启动竞态与首包失败。
+- 本地开发会主动 `app.listen`；在 Vercel 环境下通过平台注入的 `VERCEL=1` 判断，不主动监听端口，由平台接管。
+
 ## 📡 API 文档
 
 ### 健康检查
@@ -181,6 +187,7 @@ AgentChain.runChain()
 | `LLM_TEMPERATURE` | `0.7` | 采样温度 |
 | `LLM_STREAMING` | `true` | 是否流式 |
 | `LOG_LEVEL` | `info` | 日志级别 |
+| `VERCEL` | - | 部署在 Vercel 时平台会注入为 `1`；用于跳过 `app.listen` |
 
 ## 🔌 MCP 工具开发
 

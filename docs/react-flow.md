@@ -48,6 +48,7 @@ flowchart TD
 - `src/agent/chain/steps/react-execution.ts`：ReAct执行步骤，驱动 LLM 决策与工具调用
 - `src/agent/executors/*.ts`：底层执行器（Prompt 模式）
 - `src/agent/agent.ts`：提供 `languageModel`、`clientManager`、`systemPromptValue` 给执行器复用
+  - `src/services/chat/chat.service.ts`：请求前 `await globals.agentManagerReady`，避免冷启动未就绪
 
 #### ReAct执行步骤（文字）
 1. **意图分析阶段**：`IntentAnalysisStep` 分析用户消息，判断是否需要工具调用
