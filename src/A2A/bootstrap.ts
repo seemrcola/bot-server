@@ -3,6 +3,7 @@ import { AgentManager } from './manager.js';
 import leader from './Leader/index.js';
 import { createLogger } from '../utils/logger.js';
 import { ChatDeepSeek } from '@langchain/deepseek';
+import { ChatOpenAI } from '@langchain/openai';
 import { dashboards } from './Dashboard/index.js';
 
 const logger = createLogger('A2ABootstrap');

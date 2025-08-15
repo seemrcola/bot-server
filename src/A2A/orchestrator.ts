@@ -36,11 +36,17 @@ export async function runWithLeader(
   // 否则使用 LLM 路由
   else {
     const [err, data] = await selectAgentByLLM({ agentManager, messages });
+    // 如果路由失败，则回退到 Leader Agent
     if (err) {
-      throw new Error(`route_error: ${err}`);
+      chosenName = agentManager.getLeaderName();
+      reason = `fallback:llm_route_failed:${err}`;
+      logger.warn(`LLM 路由失败，回退到 Leader Agent（原因: ${err}）`);
+    } 
+    // 路由成功
+    else {
+      chosenName = data!.name;
+      reason = `llm:${data!.reason}|confidence:${data!.confidence}`;
     }
-    chosenName = data!.name;
-    reason = `llm:${data!.reason}|confidence:${data!.confidence}`;
   }
 
   const agent = agentManager.getAgent(chosenName!)!;
