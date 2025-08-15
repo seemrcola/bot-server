@@ -2,8 +2,24 @@ import { BaseMessage } from "@langchain/core/messages";
 import { createLogger } from '../../utils/logger.js';
 import { globals } from '../../globals.js'; // 从全局容器导入
 import { runWithLeader } from '../../A2A/orchestrator.js';
+import { initLeaderA2A } from '../../A2A/bootstrap.js';
 
 const logger = createLogger('ChatService');
+
+let bootstrapReadyPromise: Promise<void> | null = null;
+async function ensureBootstrap(): Promise<void> {
+  if (globals.agentManager) return;
+  if (!bootstrapReadyPromise) {
+    bootstrapReadyPromise = (async () => {
+      const agentManager = await initLeaderA2A();
+      globals.agentManager = agentManager;
+    })().catch((err) => {
+      bootstrapReadyPromise = null;
+      throw err;
+    });
+  }
+  await bootstrapReadyPromise;
+}
 
 class ChatService {
   /**
@@ -21,6 +37,7 @@ class ChatService {
       temperature?: number;
     }
   ): Promise<AsyncIterable<string>> {
+    await ensureBootstrap();
     const agentManager = globals.agentManager;
     if (!agentManager) {
       logger.error("严重错误: AgentManager 未初始化！");
