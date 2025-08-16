@@ -93,7 +93,7 @@ export const dashboards = [ YourAgent ];
 curl -N -X POST http://localhost:3000/api/chat/stream \
   -H 'Content-Type: application/json' \
   -d '{
-    "messages":[{"type":"human","content":"请让 Antfe 介绍一下团队成员"}],
+    "messages":[{"type":"human","content":"请介绍一下 Antfe 团队成员"}],
     "reactVerbose": true
   }'
 ```
