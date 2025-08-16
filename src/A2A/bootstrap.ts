@@ -3,7 +3,7 @@ import { AgentManager } from './manager.js';
 import leader from './Leader/index.js';
 import { createLogger } from '../utils/logger.js';
 import { ChatDeepSeek } from '@langchain/deepseek';
-import { ChatOpenAI } from '@langchain/openai';
+import { ChatAlibabaTongyi } from "@langchain/community/chat_models/alibaba_tongyi";
 import { dashboards } from './Dashboard/index.js';
 
 const logger = createLogger('A2ABootstrap');
@@ -12,17 +12,20 @@ const defaultSystemPrompt = `
 你是一个乐于助人的 AI 助手。回复内容请使用 Markdown 格式。`
 ;
 
-
-function createLLM() {
-  return new ChatDeepSeek({
-    apiKey: process.env['LLM_API_KEY'] || '',
-    model: process.env['LLM_MODEL'] || '',
-    temperature: 0.7,
-    streaming: true,
-    configuration: { baseURL: process.env['LLM_BASE_URL'] || '' }
-  });
+const modelMap = {
+  'qwen': ChatAlibabaTongyi,
+  'deepseek': ChatDeepSeek,
 }
 
+function createLLM() {
+  return new modelMap['qwen']({
+    model: process.env['LLM_MODEL'] || '',
+    alibabaApiKey: process.env['LLM_API_KEY'] || '',
+    temperature: 0.7,
+    streaming: true,
+  });
+}
+ 
 export async function initLeaderA2A(): Promise<AgentManager> {
   const systemPrompt = defaultSystemPrompt;
 

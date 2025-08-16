@@ -34,7 +34,8 @@
     "typescript": "^5.3.0"
   },
   "dependencies": {
-    "@langchain/core": "^0.3.62",
+    "@langchain/community": "^0.3.51",
+    "@langchain/core": "^0.3.66",
     "@langchain/deepseek": "^0.1.0",
     "@langchain/openai": "^0.5.18",
     "@modelcontextprotocol/sdk": "^1.17.1",
