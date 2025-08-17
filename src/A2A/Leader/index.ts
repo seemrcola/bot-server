@@ -5,23 +5,24 @@ import { createLogger } from '../../utils/logger.js';
 
 const logger = createLogger('Leader');
 
-export const servers = [
-  { name: 'weather-mcp-server', starter: startWeatherMCP, url: '' },
-  { name: 'system-mcp-server', starter: startSystemMCP, url: '' },
+const mcpServersDescription = [
+  { name: 'weather-mcp-server', starter: startWeatherMCP},
+  { name: 'system-mcp-server', starter: startSystemMCP},
 ];
 
 export async function startLeaderServers() {
-  for (const server of servers) {
+  const servers = [];
+  for (const server of mcpServersDescription) {
     const port = await getPort({ port: portNumbers(3100, 3999) });
-    await server.starter(server.name, '1.0.0', port, 'localhost');
-    server.url = `http://localhost:${port}/mcp`;
+    const serverInfo = await server.starter(server.name, '1.0.0', port, 'localhost');
+    servers.push(serverInfo);
     logger.info(`${server.name} 已启动，监听端口：${port}`);
   }
+  return servers;
 };
 
 export default {
   name: 'leader-agent',
-  servers,
   starter: startLeaderServers,
   agentDescription: '系统的主控, 默认使用此agent做调度',
 };

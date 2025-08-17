@@ -5,9 +5,8 @@ import { config } from './config/index.js';
 import { mainRouter } from './routes/index.js';
 import { handleSuccess, handleError } from './middlewares/response.middleware.js';
 import { createLogger } from './utils/logger.js';
-import { initLeaderA2A } from './A2A/bootstrap.js';
 import { globals } from './globals.js';
-import leader from './A2A/Leader/index.js';
+import { initLeaderA2A, leader } from './A2A/index.js';
 
 const app: Express = express();
 const logger = createLogger('MainServer');
@@ -25,7 +24,6 @@ app.use('/', mainRouter);
 // --- 响应处理中间件 (必须放在路由之后) ---
 app.use(handleSuccess);
 app.use(handleError);
-
 
 /**
  * 在 Serverless 环境中：导出 app，由 Vercel 负责监听端口。

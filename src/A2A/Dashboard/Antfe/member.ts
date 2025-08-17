@@ -12,12 +12,12 @@ const logger = createLogger('WeatherMCP');
  * @param port 服务器监听的端口
  * @param host 服务器监听的主机
  */
-export function startAntfeMCP(
+export async function startAntfeMCP(
     name: string, 
     version: string,
     port: number, 
     host: string
-): Promise<void> {
+): Promise<{ name: string, version: string, url: string }> {
   const server = new MCPServer({ name, version });
 
   // 注册这个工具
@@ -43,5 +43,11 @@ export function startAntfeMCP(
   // 启动服务器
   // 返回一个在服务器启动完成后 resolve 的 Promise
   logger.info(`准备启动外部 MCP 服务器: ${name} @ http://${host}:${port}/mcp`);
-  return server.listen(port, host);
+  await server.listen(port, host);
+
+  return {
+    name,
+    version,
+    url: `http://${host}:${port}/mcp`,
+  }
 }
