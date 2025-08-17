@@ -43,4 +43,4 @@ async function createMCPTestServer() {
   }
 }
 
-export const standaloneTestServer = createMCPTestServer();
+export const standaloneTestServer = createMCPTestServer;

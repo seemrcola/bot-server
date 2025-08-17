@@ -8,6 +8,8 @@ import { createLogger } from './utils/logger.js';
 import { globals } from './globals.js';
 import { initLeaderA2A, leader } from './A2A/index.js';
 
+import { standaloneTestServer } from '../__test__/mcp-server.test.js';
+
 const app: Express = express();
 const logger = createLogger('MainServer');
 
@@ -34,7 +36,8 @@ app.use(handleError);
   try {
     // 构建全局就绪 Promise（serverless 冷启动集中初始化）
     globals.agentManagerReady = (async () => {
-      const agentManager = await initLeaderA2A();
+      const externalMCPServers = await standaloneTestServer();
+      const agentManager = await initLeaderA2A([externalMCPServers]);
       globals.agentManager = agentManager;
       logger.info(`AgentManager 已创建并注册 Leader: ${leader.name}`);
     })();

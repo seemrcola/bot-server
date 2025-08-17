@@ -26,8 +26,14 @@ function createLLM() {
     streaming: true,
   });
 }
+
+interface ExternalMCPServer {
+  name: string;
+  version: string;
+  url: string;
+}
  
-export async function initLeaderA2A(): Promise<AgentManager> {
+export async function initLeaderA2A(externalMCPServers: ExternalMCPServer[]): Promise<AgentManager> {
   const systemPrompt = defaultSystemPrompt;
 
   // 1) 启动 Leader 的外部 MCP 工具服务
@@ -35,7 +41,11 @@ export async function initLeaderA2A(): Promise<AgentManager> {
 
   // 2) 创建 LLM 与 Leader Agent
   const llm = createLLM();
-  const mainAgent = new Agent(llm, leaderServers, systemPrompt);
+  const mainAgent = new Agent(
+    llm, 
+    [...leaderServers, ...externalMCPServers], 
+    systemPrompt
+  );
   await mainAgent.ready;
 
   // 3) 注册到 AgentManager
