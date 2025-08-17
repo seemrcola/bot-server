@@ -7,6 +7,8 @@ import { ChatAlibabaTongyi } from "@langchain/community/chat_models/alibaba_tong
 import leader from './Leader/index.js';
 import { dashboards } from './Dashboard/index.js';
 
+import type { MCPServerDescription } from './types.js';
+
 const logger = createLogger('A2ABootstrap');
 
 const defaultSystemPrompt = `
@@ -27,13 +29,9 @@ function createLLM() {
   });
 }
 
-interface ExternalMCPServer {
-  name: string;
-  version: string;
-  url: string;
-}
+
  
-export async function initLeaderA2A(externalMCPServers: ExternalMCPServer[]): Promise<AgentManager> {
+export async function initLeaderA2A(externalMCPServers: MCPServerDescription[]): Promise<AgentManager> {
   const systemPrompt = defaultSystemPrompt;
 
   // 1) 启动 Leader 的外部 MCP 工具服务

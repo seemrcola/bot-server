@@ -5,6 +5,8 @@
 import { MCPServer } from '../../agent/index.js';
 import { createLogger } from '../../utils/logger.js';
 
+import type { MCPServerDescription } from '../types.js';
+
 const logger = createLogger('SystemMCP');
 
 /**
@@ -17,7 +19,7 @@ export async function startSystemMCP(
     version: string,
     port: number, 
     host: string
-): Promise<{ name: string, version: string, url: string }> {
+): Promise<MCPServerDescription> {
   const server = new MCPServer({ name, version });
 
   // 注册这个工具
@@ -49,5 +51,5 @@ export async function startSystemMCP(
     name,
     version,
     url: `http://${host}:${port}/mcp`,
-  }
+  } as MCPServerDescription;
 }

@@ -4,7 +4,6 @@ import { createLogger } from '../../../utils/logger.js';
 
 const logger = createLogger('AntfeMCP');
 
-
 export const mcpServersDescription = [
   { name: 'antfe-mcp-server', starter: startAntfeMCP},
 ];
