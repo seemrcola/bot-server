@@ -9,7 +9,6 @@ import {
     ResponseEnhancementStep,
 } from './steps/index.js'
 
-// @ts-expect-error
 const logger = createLogger('AgentChain')
 
 /**

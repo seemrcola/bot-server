@@ -43,6 +43,7 @@ pnpm add @langchain/core @langchain/deepseek @modelcontextprotocol/sdk
 ## 🎯 快速开始
 
 ### 基础使用
+当前Agent需要结合langchain使用，使用时需要先创建langchain的llm实例，然后传入Agent中。数据格式也尽量使用langchain的各种Message类型。
 
 ```typescript
 import { HumanMessage, SystemMessage } from '@langchain/core/messages'
