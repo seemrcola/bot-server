@@ -21,8 +21,8 @@
         "start": "node dist/index.js",
         "dev": "tsx --watch src/index.ts",
         "clean": "rimraf dist",
-        "lint": "eslint src/**/*.ts",
-        "lint:fix": "eslint src/**/*.ts --fix",
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
         "type-check": "tsc --noEmit"
     },
     "dependencies": {

@@ -61,19 +61,20 @@ registerSubAgent(parentName: string, name: string, agent: Agent, description?: s
 1) 在 `A2A/Dashboard/<YourAgent>/index.ts` 默认导出：
 ```ts
 export default {
-  name: 'your-agent',
-  servers: [ { name: 'your-mcp', url: '' } ],
-  async starter() {
+    name: 'your-agent',
+    servers: [{ name: 'your-mcp', url: '' }],
+    async starter() {
     // 启动 MCP 服务并回填 servers[i].url
-  },
-  agentDescription: '当用户需要 <YourAgent> 领域的能力时使用',
+    },
+    agentDescription: '当用户需要 <YourAgent> 领域的能力时使用',
 }
 ```
 
 2) 将该模块加入集中导出 `A2A/Dashboard/index.ts`：
 ```ts
-import YourAgent from './YourAgent/index.js';
-export const dashboards = [ YourAgent ];
+import YourAgent from './YourAgent/index.js'
+
+export const dashboards = [YourAgent]
 ```
 
 3) 启动时 `bootstrap.ts` 会读取 `dashboards` 列表、启动 MCP、构建子 Agent 并 `registerSubAgent()`；默认会以 `name` 作为 keyword，并生成去掉 `-agent` 的别名。
@@ -99,5 +100,3 @@ curl -N -X POST http://localhost:3000/api/chat/stream \
 ```
 
 路由决策将自动执行：显式 → LLM → 规则 → Leader 兜底。
-
-

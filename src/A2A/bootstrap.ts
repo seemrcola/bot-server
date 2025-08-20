@@ -1,33 +1,16 @@
 import type { MCPServerDescription } from './types.js'
-import process from 'node:process'
-import { ChatAlibabaTongyi } from '@langchain/community/chat_models/alibaba_tongyi'
-import { ChatDeepSeek } from '@langchain/deepseek'
 import { Agent } from '../agent/index.js'
 import { createLogger } from '../utils/logger.js'
 import { dashboards } from './Dashboard/index.js'
 // leader 模块 和 dashboard 模块
 import leader from './Leader/index.js'
-
+import { createLLM } from './llm.js'
 import { AgentManager } from './manager.js'
 
 const logger = createLogger('A2ABootstrap')
 
 const defaultSystemPrompt = `
 你是一个乐于助人的 AI 助手。回复内容请使用 Markdown 格式。`
-
-const ModelMap = {
-    qwen: ChatAlibabaTongyi,
-    deepseek: ChatDeepSeek,
-}
-
-function createLLM() {
-    return new ModelMap.qwen({
-        model: process.env['LLM_MODEL'] || '',
-        alibabaApiKey: process.env['LLM_API_KEY'] || '',
-        temperature: 0.7,
-        streaming: true,
-    })
-}
 
 export async function initLeaderA2A(externalMCPServers: MCPServerDescription[]): Promise<AgentManager> {
     const systemPrompt = defaultSystemPrompt

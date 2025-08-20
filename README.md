@@ -233,20 +233,22 @@ await server.listen(3101, 'localhost')
 ### 1. 错误处理
 ```typescript
 try {
-  const response = await fetch('/api/chat/stream', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages: [...] })
-  });
+    const response = await fetch('/api/chat/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: [/* ... */] })
+    })
 
-  const reader = response.body?.getReader();
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    console.log(new TextDecoder().decode(value));
-  }
-} catch (error) {
-  console.error('请求失败:', error);
+    const reader = response.body?.getReader()
+    while (true) {
+        const { done, value } = await reader.read()
+        if (done)
+            break
+        console.log(new TextDecoder().decode(value))
+    }
+}
+catch (error) {
+    console.error('请求失败:', error)
 }
 ```
 

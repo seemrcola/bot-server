@@ -25,12 +25,12 @@ GET /api/health
 **响应示例：**
 ```json
 {
-  "success": true,
-  "data": {
-    "status": "healthy",
-    "timestamp": "2024-01-01T00:00:00.000Z",
-    "uptime": 3600
-  }
+    "success": true,
+    "data": {
+        "status": "healthy",
+        "timestamp": "2024-01-01T00:00:00.000Z",
+        "uptime": 3600
+    }
 }
 ```
 
@@ -61,8 +61,8 @@ Content-Type: application/json
 
 ```typescript
 interface Message {
-  type: 'human' | 'ai' | 'system';
-  content: string;
+    type: 'human' | 'ai' | 'system'
+    content: string
 }
 ```
 
@@ -71,26 +71,26 @@ interface Message {
 **基础聊天：**
 ```json
 {
-  "messages": [
-    {
-      "type": "human",
-      "content": "你好，请介绍一下自己"
-    }
-  ],
-  "reactVerbose": false
+    "messages": [
+        {
+            "type": "human",
+            "content": "你好，请介绍一下自己"
+        }
+    ],
+    "reactVerbose": false
 }
 ```
 
 **工具调用：**
 ```json
 {
-  "messages": [
-    {
-      "type": "human",
-      "content": "获取当前天气和系统信息"
-    }
-  ],
-  "reactVerbose": true
+    "messages": [
+        {
+            "type": "human",
+            "content": "获取当前天气和系统信息"
+        }
+    ],
+    "reactVerbose": true
 }
 ```
 
@@ -125,7 +125,7 @@ interface Message {
 
 ```json
 {
-  "error": "messages are required in the request body and must be a non-empty array."
+    "error": "messages are required in the request body and must be a non-empty array."
 }
 ```
 
@@ -149,14 +149,14 @@ interface Message {
 
 ```json
 {
-  "thought": "当前推理步骤的逻辑说明",
-  "action": "tool_call | user_input | final_answer",
-  "action_input": {
-    "tool_name": "工具名（action=tool_call时）",
-    "parameters": {}
-  },
-  "observation": "工具调用返回结果",
-  "answer": "最终回答（action=final_answer时）"
+    "thought": "当前推理步骤的逻辑说明",
+    "action": "tool_call | user_input | final_answer",
+    "action_input": {
+        "tool_name": "工具名（action=tool_call时）",
+        "parameters": {}
+    },
+    "observation": "工具调用返回结果",
+    "answer": "最终回答（action=final_answer时）"
 }
 ```
 
@@ -212,23 +212,24 @@ curl -N -X POST http://localhost:3000/api/chat/stream \
 **基础使用：**
 ```javascript
 const response = await fetch('/api/chat/stream', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    messages: [{ type: 'human', content: '你好' }],
-    reactVerbose: false
-  })
-});
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        messages: [{ type: 'human', content: '你好' }],
+        reactVerbose: false
+    })
+})
 
-const reader = response.body.getReader();
-const decoder = new TextDecoder();
+const reader = response.body.getReader()
+const decoder = new TextDecoder()
 
 while (true) {
-  const { done, value } = await reader.read();
-  if (done) break;
-  
-  const chunk = decoder.decode(value);
-  console.log(chunk);
+    const { done, value } = await reader.read()
+    if (done)
+        break
+
+    const chunk = decoder.decode(value)
+    console.log(chunk)
 }
 ```
 
@@ -240,12 +241,12 @@ try {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ messages: [...] })
   });
-  
+
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error);
   }
-  
+
   // 处理流式响应...
 } catch (error) {
   console.error('请求失败:', error);
@@ -264,7 +265,7 @@ try {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ messages: [...] })
   });
-  
+
   // 处理响应...
 } finally {
   clearTimeout(timeout);
@@ -285,7 +286,7 @@ try {
 
 ```json
 {
-  "error": "错误描述信息"
+    "error": "错误描述信息"
 }
 ```
 
@@ -342,4 +343,4 @@ curl http://localhost:3000/api/health
 
 ---
 
-如有问题或建议，请提交Issue或Pull Request。 
+如有问题或建议，请提交Issue或Pull Request。
