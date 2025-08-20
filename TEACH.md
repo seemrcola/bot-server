@@ -24,14 +24,14 @@ graph LR
     subgraph "执行层 (Execution Layer)"
         TOOLS["🛠️ Tools<br/>- read_file()<br/>- search_web()<br/>- ..."]
     end
-    
+
     AGENT -- "寻求规划" --> LLM
     LLM -- "返回计划" --> AGENT
     AGENT -- "执行动作" --> TOOLS
     TOOLS -- "返回结果" --> AGENT
 ```
 
-### 从 System Prompt 开始  
+### 从 System Prompt 开始
 
 我们在和**大模型（LLM）**对话的时候，由于模型的回复是随机的，我们希望模型能够按照一定的**角色、身份、立场或风格**来回复，就需要请提前给模型一些提示（Prompts），这些提示就是 **System Prompt**。它用于确定模型回复的整体基调。
 
@@ -65,18 +65,18 @@ graph LR
 
     ```json
     {
-      "name": "get_current_time",
-      "description": "获取指定时区的当前时间",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "timezone": {
-            "type": "string",
-            "description": "时区，例如 'Asia/Shanghai'"
-          }
-        },
-        "required": ["timezone"]
-      }
+        "name": "get_current_time",
+        "description": "获取指定时区的当前时间",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "timezone": {
+                    "type": "string",
+                    "description": "时区，例如 'Asia/Shanghai'"
+                }
+            },
+            "required": ["timezone"]
+        }
     }
     ```
 
@@ -84,10 +84,10 @@ graph LR
 
     ```json
     {
-      "name": "get_current_time",
-      "parameters": {
-        "timezone": "Asia/Shanghai"
-      }
+        "name": "get_current_time",
+        "parameters": {
+            "timezone": "Asia/Shanghai"
+        }
     }
     ```
 
@@ -122,4 +122,3 @@ graph LR
 
 ### 多Agent
 ...ing
-

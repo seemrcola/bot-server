@@ -1,8 +1,8 @@
-import { Router } from 'express';
-import { streamChatHandler } from '../controllers/chat.controller.js';
+import { Router } from 'express'
+import { streamChatHandler } from '../controllers/chat.controller.js'
 
-const chatRouter: Router = Router();
+const chatRouter: Router = Router()
 
-chatRouter.post('/stream', streamChatHandler);
+chatRouter.post('/stream', streamChatHandler)
 
-export { chatRouter };
+export { chatRouter }

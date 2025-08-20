@@ -99,7 +99,9 @@ export class MCPServer {
         res.status(400).send('无效或缺失的会话 ID');
       } 
       // 如果找到了那就直接处理请求
-      // transport内部自己会处理请求 如果是get请求 会调用handleGetRequest 如果是delete请求 会调用handleDeleteRequest
+      // transport内部自己会处理请求 
+      // 如果是get请求 会调用handleGetRequest 
+      // 如果是delete请求 会调用handleDeleteRequest
       else {
         await transports[sessionId]!.handleRequest(req, res, req.body);
       }

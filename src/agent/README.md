@@ -45,59 +45,59 @@ pnpm add @langchain/core @langchain/deepseek @modelcontextprotocol/sdk
 ### 基础使用
 
 ```typescript
-import { Agent, AgentChain } from './index.js';
-import { ChatDeepSeek } from '@langchain/deepseek';
-import { SystemMessage, HumanMessage } from '@langchain/core/messages';
+import { HumanMessage, SystemMessage } from '@langchain/core/messages'
+import { ChatDeepSeek } from '@langchain/deepseek'
+import { Agent, AgentChain } from './index.js'
 
 // 1. 创建LLM实例
 const llm = new ChatDeepSeek({
-  apiKey: process.env.LLM_API_KEY ?? '',
-  model: process.env.LLM_MODEL ?? 'deepseek-chat',
-  temperature: 0.7,
-  streaming: true,
-});
+    apiKey: process.env.LLM_API_KEY ?? '',
+    model: process.env.LLM_MODEL ?? 'deepseek-chat',
+    temperature: 0.7,
+    streaming: true,
+})
 
 // 2. 创建Agent
-const agent = new Agent(llm, [], '你是一个乐于助人的AI助手。');
-await agent.ready;
+const agent = new Agent(llm, [], '你是一个乐于助人的AI助手。')
+await agent.ready
 
 // 3. 创建AgentChain并执行
-const chain = new AgentChain(agent);
-const messages = [new HumanMessage('你好，请介绍一下自己')];
+const chain = new AgentChain(agent)
+const messages = [new HumanMessage('你好，请介绍一下自己')]
 
 for await (const chunk of chain.runChain(messages)) {
-  process.stdout.write(chunk);
+    process.stdout.write(chunk)
 }
 ```
 
 ### 带工具的使用
 
 ```typescript
-import { Agent, AgentChain } from './index.js';
-import type { ExternalServerConfig } from './mcp/client/manager.js';
+import type { ExternalServerConfig } from './mcp/client/manager.js'
+import { Agent, AgentChain } from './index.js'
 
 // 配置外部MCP服务
 const servers: ExternalServerConfig[] = [
-  { name: 'weather-server', version: '1.0.0', url: 'http://localhost:3101/mcp' },
-  { name: 'system-server', version: '1.0.0', url: 'http://localhost:3102/mcp' },
-];
+    { name: 'weather-server', version: '1.0.0', url: 'http://localhost:3101/mcp' },
+    { name: 'system-server', version: '1.0.0', url: 'http://localhost:3102/mcp' },
+]
 
 // 创建Agent
-const agent = new Agent(llm, servers, systemPrompt);
-await agent.ready;
+const agent = new Agent(llm, servers, systemPrompt)
+await agent.ready
 
 // 执行链式处理
-const chain = new AgentChain(agent);
-const messages = [new HumanMessage('获取当前天气和系统信息')];
+const chain = new AgentChain(agent)
+const messages = [new HumanMessage('获取当前天气和系统信息')]
 
 // 仅保留 Prompt 策略
 const stream = await chain.runChain(messages, {
-  maxSteps: 8,
-  reactVerbose: false,
-});
+    maxSteps: 8,
+    reactVerbose: false,
+})
 
 for await (const chunk of stream) {
-  process.stdout.write(chunk);
+    process.stdout.write(chunk)
 }
 ```
 
@@ -107,11 +107,11 @@ for await (const chunk of stream) {
 
 ```typescript
 class Agent {
-  constructor(
-    llm: BaseLanguageModel,
-    externalServers: ExternalServerConfig[] = [],
-    systemPrompt: string
-  )
+    constructor(
+        llm: BaseLanguageModel,
+        externalServers: ExternalServerConfig[] = [],
+        systemPrompt: string
+    )
 }
 ```
 
@@ -128,21 +128,21 @@ class Agent {
 
 ```typescript
 class AgentChain {
-  constructor(agent: Agent)
-  
-  runChain(
-    messages: BaseMessage[],
-    options?: ChainOptions
-  ): AsyncIterable<string>
+    constructor(agent: Agent)
+
+    runChain(
+        messages: BaseMessage[],
+        options?: ChainOptions
+    ): AsyncIterable<string>
 }
 ```
 
 **ChainOptions 接口：**
 ```typescript
 interface ChainOptions {
-  maxSteps?: number;
-  reactVerbose?: boolean;
-  temperature?: number;
+    maxSteps?: number
+    reactVerbose?: boolean
+    temperature?: number
 }
 ```
 
@@ -184,14 +184,14 @@ interface ChainOptions {
 
 ```json
 {
-  "thought": "当前推理步骤的逻辑说明",
-  "action": "tool_call | user_input | final_answer",
-  "action_input": {
-    "tool_name": "工具名（action=tool_call时）",
-    "parameters": {}
-  },
-  "observation": "工具调用返回结果",
-  "answer": "最终回答（action=final_answer时）"
+    "thought": "当前推理步骤的逻辑说明",
+    "action": "tool_call | user_input | final_answer",
+    "action_input": {
+        "tool_name": "工具名（action=tool_call时）",
+        "parameters": {}
+    },
+    "observation": "工具调用返回结果",
+    "answer": "最终回答（action=final_answer时）"
 }
 ```
 
@@ -200,29 +200,29 @@ interface ChainOptions {
 ### 创建MCP服务
 
 ```typescript
-import { MCPServer } from './index.js';
+import { MCPServer } from './index.js'
 
-const server = new MCPServer({ 
-  name: 'weather-server', 
-  version: '1.0.0' 
-});
+const server = new MCPServer({
+    name: 'weather-server',
+    version: '1.0.0'
+})
 
 server.mcp.tool(
-  'getWeather',
-  '获取当前天气信息',
-  {
-    type: 'object',
-    properties: {
-      city: { type: 'string', description: '城市名称' }
-    }
-  },
-  async (args) => ({
-    content: [{ type: 'text', text: `北京天气：晴天，25°C` }],
-    structuredContent: { weather: '晴天', temperature: 25 }
-  })
-);
+    'getWeather',
+    '获取当前天气信息',
+    {
+        type: 'object',
+        properties: {
+            city: { type: 'string', description: '城市名称' }
+        }
+    },
+    async args => ({
+        content: [{ type: 'text', text: `北京天气：晴天，25°C` }],
+        structuredContent: { weather: '晴天', temperature: 25 }
+    })
+)
 
-await server.listen(3101, 'localhost');
+await server.listen(3101, 'localhost')
 ```
 
 ### 工具返回格式
@@ -239,39 +239,40 @@ await server.listen(3101, 'localhost');
 ### 1. 错误处理
 ```typescript
 try {
-  for await (const chunk of chain.runChain(messages)) {
-    process.stdout.write(chunk);
-  }
-} catch (error) {
-  console.error('链式处理失败:', error);
+    for await (const chunk of chain.runChain(messages)) {
+        process.stdout.write(chunk)
+    }
+}
+catch (error) {
+    console.error('链式处理失败:', error)
 }
 ```
 
 ### 2. 超时控制
 ```typescript
 const timeout = setTimeout(() => {
-  // 处理超时逻辑
-}, 30000);
+    // 处理超时逻辑
+}, 30000)
 
 for await (const chunk of chain.runChain(messages)) {
-  process.stdout.write(chunk);
+    process.stdout.write(chunk)
 }
 
-clearTimeout(timeout);
+clearTimeout(timeout)
 ```
 
 ### 3. 自定义步骤
 ```typescript
 class CustomStep implements ChainStep {
-  name = 'custom_step';
-  
-  async execute(context: ChainContext): Promise<void> {
+    name = 'custom_step'
+
+    async execute(context: ChainContext): Promise<void> {
     // 自定义逻辑
-  }
+    }
 }
 
 // 在AgentChain中注册
-this.steps.push(new CustomStep());
+this.steps.push(new CustomStep())
 ```
 
 ## 🔍 调试与监控
@@ -279,16 +280,16 @@ this.steps.push(new CustomStep());
 ### 日志级别
 ```typescript
 // 设置日志级别
-process.env.LOG_LEVEL = 'debug'; // debug | info | warn | error
+process.env.LOG_LEVEL = 'debug' // debug | info | warn | error
 ```
 
 ### 性能监控
 ```typescript
-const startTime = Date.now();
+const startTime = Date.now()
 for await (const chunk of chain.runChain(messages)) {
-  process.stdout.write(chunk);
+    process.stdout.write(chunk)
 }
-console.log(`处理耗时: ${Date.now() - startTime}ms`);
+console.log(`处理耗时: ${Date.now() - startTime}ms`)
 ```
 
 ## 🚨 常见问题
@@ -318,5 +319,3 @@ A: 支持所有符合LangChain BaseLanguageModel接口的模型。
 ---
 
 如需独立打包发布，可将本目录作为一个独立包输出，并在 `index.ts` 暴露相关类与类型。
-
-

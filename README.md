@@ -88,12 +88,12 @@ GET /api/health
 **响应示例：**
 ```json
 {
-  "success": true,
-  "data": {
-    "status": "healthy",
-    "timestamp": "2024-01-01T00:00:00.000Z",
-    "uptime": 3600
-  }
+    "success": true,
+    "data": {
+        "status": "healthy",
+        "timestamp": "2024-01-01T00:00:00.000Z",
+        "uptime": 3600
+    }
 }
 ```
 
@@ -107,13 +107,13 @@ Content-Type: application/json
 **请求体：**
 ```json
 {
-  "messages": [
-    {
-      "type": "human",
-      "content": "给我打个招呼，然后获取当前天气信息"
-    }
-  ],
-  "reactVerbose": false
+    "messages": [
+        {
+            "type": "human",
+            "content": "给我打个招呼，然后获取当前天气信息"
+        }
+    ],
+    "reactVerbose": false
 }
 ```
 
@@ -194,29 +194,29 @@ AgentChain.runChain()
 ### 创建外部MCP服务
 
 ```typescript
-import { MCPServer } from './src/agent/index.js';
+import { MCPServer } from './src/agent/index.js'
 
-const server = new MCPServer({ 
-  name: 'weather-server', 
-  version: '1.0.0' 
-});
+const server = new MCPServer({
+    name: 'weather-server',
+    version: '1.0.0'
+})
 
 server.mcp.tool(
-  'getWeather',
-  '获取当前天气信息',
-  {
-    type: 'object',
-    properties: {
-      city: { type: 'string', description: '城市名称' }
-    }
-  },
-  async (args) => ({
-    content: [{ type: 'text', text: `北京天气：晴天，25°C` }],
-    structuredContent: { weather: '晴天', temperature: 25 }
-  })
-);
+    'getWeather',
+    '获取当前天气信息',
+    {
+        type: 'object',
+        properties: {
+            city: { type: 'string', description: '城市名称' }
+        }
+    },
+    async args => ({
+        content: [{ type: 'text', text: `北京天气：晴天，25°C` }],
+        structuredContent: { weather: '晴天', temperature: 25 }
+    })
+)
 
-await server.listen(3101, 'localhost');
+await server.listen(3101, 'localhost')
 ```
 
 ### 工具返回格式
@@ -238,7 +238,7 @@ try {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ messages: [...] })
   });
-  
+
   const reader = response.body?.getReader();
   while (true) {
     const { done, value } = await reader.read();
@@ -252,31 +252,33 @@ try {
 
 ### 2. 超时控制
 ```typescript
-const controller = new AbortController();
-const timeout = setTimeout(() => controller.abort(), 30000);
+const controller = new AbortController()
+const timeout = setTimeout(() => controller.abort(), 30000)
 
 try {
-  const response = await fetch('/api/chat/stream', {
-    signal: controller.signal,
+    const response = await fetch('/api/chat/stream', {
+        signal: controller.signal,
     // ... 其他配置
-  });
-} finally {
-  clearTimeout(timeout);
+    })
+}
+finally {
+    clearTimeout(timeout)
 }
 ```
 
 ### 3. 流式处理
 ```typescript
-const reader = response.body?.getReader();
-const decoder = new TextDecoder();
+const reader = response.body?.getReader()
+const decoder = new TextDecoder()
 
 while (true) {
-  const { done, value } = await reader.read();
-  if (done) break;
-  
-  const chunk = decoder.decode(value);
-  // 处理流式数据
-  process.stdout.write(chunk);
+    const { done, value } = await reader.read()
+    if (done)
+        break
+
+    const chunk = decoder.decode(value)
+    // 处理流式数据
+    process.stdout.write(chunk)
 }
 ```
 
@@ -297,18 +299,18 @@ pnpm run lint:fix
 ### 添加新的链式步骤
 
 ```typescript
-import { ChainStep, ChainContext } from './src/agent/chain/types.js';
+import { ChainContext, ChainStep } from './src/agent/chain/types.js'
 
 class CustomStep implements ChainStep {
-  name = 'custom_step';
-  
-  async execute(context: ChainContext): Promise<void> {
+    name = 'custom_step'
+
+    async execute(context: ChainContext): Promise<void> {
     // 自定义逻辑
-  }
+    }
 }
 
 // 在AgentChain中注册
-this.steps.push(new CustomStep());
+this.steps.push(new CustomStep())
 ```
 
 ### 自定义MCP工具
@@ -316,13 +318,13 @@ this.steps.push(new CustomStep());
 ```typescript
 // 在 src/external/ 目录下创建新的MCP服务
 export async function startCustomServer(port: number, host: string) {
-  const server = new MCPServer({ name: 'custom-server', version: '1.0.0' });
-  
-  server.mcp.tool('customTool', '自定义工具', {}, async () => ({
-    content: [{ type: 'text', text: '工具执行结果' }]
-  }));
-  
-  await server.listen(port, host);
+    const server = new MCPServer({ name: 'custom-server', version: '1.0.0' })
+
+    server.mcp.tool('customTool', '自定义工具', {}, async () => ({
+        content: [{ type: 'text', text: '工具执行结果' }]
+    }))
+
+    await server.listen(port, host)
 }
 ```
 
@@ -344,7 +346,7 @@ A: 可以继承ResponseEnhancementStep类或创建新的步骤类。
 A: 需要工具端分片产出并通过MCP推送，客户端再提供AsyncIterable管道。
 
 ### Q: 接下来做什么功能？
-A： 
+A：
 - 添加单元测试：为核心模块添加测试用例
 - 性能监控：添加请求耗时、成功率等指标
 - 配置验证：增强环境变量和配置的验证

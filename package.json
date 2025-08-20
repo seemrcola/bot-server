@@ -1,51 +1,50 @@
 {
-  "name": "server",
-  "version": "1.0.0",
-  "description": "Node.js server with TypeScript and ES modules",
-  "type": "module",
-  "main": "dist/index.js",
-  "scripts": {
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "tsx --watch src/index.ts",
-    "clean": "rimraf dist",
-    "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix",
-    "type-check": "tsc --noEmit"
-  },
-  "keywords": [
-    "nodejs",
-    "typescript",
-    "es-modules",
-    "mcp",
-    "chatbot"
-  ],
-  "author": "",
-  "license": "MIT",
-  "devDependencies": {
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.3",
-    "@types/node": "^20.19.4",
-    "@typescript-eslint/eslint-plugin": "^6.13.0",
-    "@typescript-eslint/parser": "^6.13.0",
-    "eslint": "^8.55.0",
-    "rimraf": "^5.0.5",
-    "tsx": "^4.20.3",
-    "typescript": "^5.3.0"
-  },
-  "dependencies": {
-    "@langchain/community": "^0.3.51",
-    "@langchain/core": "^0.3.66",
-    "@langchain/deepseek": "^0.1.0",
-    "@langchain/openai": "^0.5.18",
-    "@modelcontextprotocol/sdk": "^1.17.1",
-    "cors": "^2.8.5",
-    "dotenv": "^16.0.3",
-    "express": "^4.21.2",
-    "get-port": "^7.1.0",
-    "langchain": "^0.3.29"
-  },
-  "engines": {
-    "node": ">=18.0.0"
-  }
+    "name": "server",
+    "type": "module",
+    "version": "1.0.0",
+    "description": "Node.js server with TypeScript and ES modules",
+    "author": "",
+    "license": "MIT",
+    "keywords": [
+        "nodejs",
+        "typescript",
+        "es-modules",
+        "mcp",
+        "chatbot"
+    ],
+    "main": "dist/index.js",
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "scripts": {
+        "build": "tsc",
+        "start": "node dist/index.js",
+        "dev": "tsx --watch src/index.ts",
+        "clean": "rimraf dist",
+        "lint": "eslint src/**/*.ts",
+        "lint:fix": "eslint src/**/*.ts --fix",
+        "type-check": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@langchain/community": "^0.3.53",
+        "@langchain/core": "^0.3.72",
+        "@langchain/deepseek": "^0.1.0",
+        "@langchain/openai": "^0.5.18",
+        "@modelcontextprotocol/sdk": "^1.17.3",
+        "cors": "^2.8.5",
+        "dotenv": "^16.6.1",
+        "express": "^4.21.2",
+        "get-port": "^7.1.0",
+        "langchain": "^0.3.31"
+    },
+    "devDependencies": {
+        "@antfu/eslint-config": "^5.2.1",
+        "@types/cors": "^2.8.19",
+        "@types/express": "^5.0.3",
+        "@types/node": "^20.19.11",
+        "eslint": "^9.33.0",
+        "rimraf": "^5.0.10",
+        "tsx": "^4.20.4",
+        "typescript": "^5.9.2"
+    }
 }

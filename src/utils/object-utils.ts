@@ -10,22 +10,23 @@
  * @returns 合并后的新对象
  */
 export function deepMerge(target: any, source: any): any {
-  const result = { ...target };
+    const result = { ...target }
 
-  for (const key in source) {
-    const sourceValue = source[key];
-    const targetValue = result[key];
+    for (const key in source) {
+        const sourceValue = source[key]
+        const targetValue = result[key]
 
-    if (sourceValue !== undefined) {
-      if (isObject(sourceValue) && isObject(targetValue)) {
-        result[key] = deepMerge(targetValue, sourceValue);
-      } else {
-        result[key] = sourceValue;
-      }
+        if (sourceValue !== undefined) {
+            if (isObject(sourceValue) && isObject(targetValue)) {
+                result[key] = deepMerge(targetValue, sourceValue)
+            }
+            else {
+                result[key] = sourceValue
+            }
+        }
     }
-  }
 
-  return result;
+    return result
 }
 
 /**
@@ -34,7 +35,7 @@ export function deepMerge(target: any, source: any): any {
  * @returns 是否为对象
  */
 export function isObject(item: any): item is Record<string, any> {
-  return item && typeof item === 'object' && !Array.isArray(item);
+    return item && typeof item === 'object' && !Array.isArray(item)
 }
 
 /**
@@ -43,7 +44,7 @@ export function isObject(item: any): item is Record<string, any> {
  * @returns 克隆后的新对象
  */
 export function deepClone<T>(obj: T): T {
-  return JSON.parse(JSON.stringify(obj));
+    return JSON.parse(JSON.stringify(obj))
 }
 
 /**
@@ -54,17 +55,17 @@ export function deepClone<T>(obj: T): T {
  * @returns 属性值或默认值
  */
 export function safeGet(obj: any, path: string, defaultValue?: any): any {
-  const keys = path.split('.');
-  let result = obj;
+    const keys = path.split('.')
+    let result = obj
 
-  for (const key of keys) {
-    if (result == null || typeof result !== 'object') {
-      return defaultValue;
+    for (const key of keys) {
+        if (result == null || typeof result !== 'object') {
+            return defaultValue
+        }
+        result = result[key]
     }
-    result = result[key];
-  }
 
-  return result !== undefined ? result : defaultValue;
+    return result !== undefined ? result : defaultValue
 }
 
 /**
@@ -74,23 +75,24 @@ export function safeGet(obj: any, path: string, defaultValue?: any): any {
  * @param value 要设置的值
  */
 export function safeSet(obj: any, path: string, value: any): void {
-  const keys = path.split('.');
-  let current = obj;
+    const keys = path.split('.')
+    let current = obj
 
-  for (let i = 0; i < keys.length - 1; i++) {
-    const key = keys[i];
-    if (!key) continue;
+    for (let i = 0; i < keys.length - 1; i++) {
+        const key = keys[i]
+        if (!key)
+            continue
 
-    if (!current[key] || typeof current[key] !== 'object') {
-      current[key] = {};
+        if (!current[key] || typeof current[key] !== 'object') {
+            current[key] = {}
+        }
+        current = current[key]
     }
-    current = current[key];
-  }
 
-  const lastKey = keys[keys.length - 1];
-  if (lastKey) {
-    current[lastKey] = value;
-  }
+    const lastKey = keys[keys.length - 1]
+    if (lastKey) {
+        current[lastKey] = value
+    }
 }
 
 /**
@@ -100,18 +102,18 @@ export function safeSet(obj: any, path: string, value: any): void {
  * @returns 过滤后的新对象
  */
 export function filterObject<T>(
-  obj: Record<string, T>,
-  predicate: (key: string, value: T) => boolean
+    obj: Record<string, T>,
+    predicate: (key: string, value: T) => boolean,
 ): Record<string, T> {
-  const result: Record<string, T> = {};
-  
-  for (const [key, value] of Object.entries(obj)) {
-    if (predicate(key, value)) {
-      result[key] = value;
+    const result: Record<string, T> = {}
+
+    for (const [key, value] of Object.entries(obj)) {
+        if (predicate(key, value)) {
+            result[key] = value
+        }
     }
-  }
-  
-  return result;
+
+    return result
 }
 
 /**
@@ -121,16 +123,16 @@ export function filterObject<T>(
  * @returns 映射后的新对象
  */
 export function mapObject<T, U>(
-  obj: Record<string, T>,
-  mapper: (key: string, value: T) => U
+    obj: Record<string, T>,
+    mapper: (key: string, value: T) => U,
 ): Record<string, U> {
-  const result: Record<string, U> = {};
-  
-  for (const [key, value] of Object.entries(obj)) {
-    result[key] = mapper(key, value);
-  }
-  
-  return result;
+    const result: Record<string, U> = {}
+
+    for (const [key, value] of Object.entries(obj)) {
+        result[key] = mapper(key, value)
+    }
+
+    return result
 }
 
 /**
@@ -139,10 +141,13 @@ export function mapObject<T, U>(
  * @returns 是否为空
  */
 export function isEmpty(obj: any): boolean {
-  if (obj == null) return true;
-  if (Array.isArray(obj)) return obj.length === 0;
-  if (typeof obj === 'object') return Object.keys(obj).length === 0;
-  return false;
+    if (obj == null)
+        return true
+    if (Array.isArray(obj))
+        return obj.length === 0
+    if (typeof obj === 'object')
+        return Object.keys(obj).length === 0
+    return false
 }
 
 /**
@@ -152,17 +157,18 @@ export function isEmpty(obj: any): boolean {
  * @returns 扁平化后的对象
  */
 export function flatten(obj: any, prefix = ''): Record<string, any> {
-  const result: Record<string, any> = {};
-  
-  for (const key in obj) {
-    const newKey = prefix ? `${prefix}.${key}` : key;
-    
-    if (isObject(obj[key])) {
-      Object.assign(result, flatten(obj[key], newKey));
-    } else {
-      result[newKey] = obj[key];
+    const result: Record<string, any> = {}
+
+    for (const key in obj) {
+        const newKey = prefix ? `${prefix}.${key}` : key
+
+        if (isObject(obj[key])) {
+            Object.assign(result, flatten(obj[key], newKey))
+        }
+        else {
+            result[newKey] = obj[key]
+        }
     }
-  }
-  
-  return result;
+
+    return result
 }

@@ -35,11 +35,11 @@ agent/
 
 ```typescript
 class Agent {
-  constructor(
-    llm: BaseLanguageModel,
-    externalServers: ExternalServerConfig[] = [],
-    systemPrompt: string
-  )
+    constructor(
+        llm: BaseLanguageModel,
+        externalServers: ExternalServerConfig[] = [],
+        systemPrompt: string
+    )
 }
 ```
 
@@ -69,21 +69,21 @@ class Agent {
 #### 使用示例
 
 ```typescript
-import { Agent } from './agent/index.js';
-import { ChatDeepSeek } from '@langchain/deepseek';
+import { ChatDeepSeek } from '@langchain/deepseek'
+import { Agent } from './agent/index.js'
 
 const llm = new ChatDeepSeek({
-  apiKey: process.env.LLM_API_KEY,
-  model: 'deepseek-chat',
-  temperature: 0.7,
-  streaming: true,
-});
+    apiKey: process.env.LLM_API_KEY,
+    model: 'deepseek-chat',
+    temperature: 0.7,
+    streaming: true,
+})
 
-const agent = new Agent(llm, [], '你是一个乐于助人的AI助手。');
-await agent.ready;
+const agent = new Agent(llm, [], '你是一个乐于助人的AI助手。')
+await agent.ready
 
-const tools = await agent.listTools();
-console.log('可用工具:', tools);
+const tools = await agent.listTools()
+console.log('可用工具:', tools)
 ```
 
 ### AgentChain 类
@@ -92,12 +92,12 @@ console.log('可用工具:', tools);
 
 ```typescript
 class AgentChain {
-  constructor(agent: Agent)
-  
-  runChain(
-    messages: BaseMessage[],
-    options?: ChainOptions
-  ): AsyncIterable<string>
+    constructor(agent: Agent)
+
+    runChain(
+        messages: BaseMessage[],
+        options?: ChainOptions
+    ): AsyncIterable<string>
 }
 ```
 
@@ -111,26 +111,26 @@ class AgentChain {
 
 ```typescript
 interface ChainOptions {
-  maxSteps?: number;           // 最大执行步数，默认8
-  // 统一使用 Prompt 策略，已移除 function
-  reactVerbose?: boolean;      // 是否输出详细ReAct步骤
+    maxSteps?: number // 最大执行步数，默认8
+    // 统一使用 Prompt 策略，已移除 function
+    reactVerbose?: boolean // 是否输出详细ReAct步骤
 }
 ```
 
 #### 使用示例
 
 ```typescript
-import { AgentChain } from './agent/index.js';
-import { HumanMessage } from '@langchain/core/messages';
+import { HumanMessage } from '@langchain/core/messages'
+import { AgentChain } from './agent/index.js'
 
-const chain = new AgentChain(agent);
-const messages = [new HumanMessage('你好，请介绍一下自己')];
+const chain = new AgentChain(agent)
+const messages = [new HumanMessage('你好，请介绍一下自己')]
 
 for await (const chunk of chain.runChain(messages, {
-  maxSteps: 8,
-  reactVerbose: false
+    maxSteps: 8,
+    reactVerbose: false
 })) {
-  process.stdout.write(chunk);
+    process.stdout.write(chunk)
 }
 ```
 
@@ -142,9 +142,9 @@ for await (const chunk of chain.runChain(messages, {
 
 ```typescript
 class IntentAnalysisStep implements ChainStep {
-  name = 'intent_analysis';
-  
-  async execute(context: ChainContext): Promise<void>
+    name = 'intent_analysis'
+
+    async execute(context: ChainContext): Promise<void>
 }
 ```
 
@@ -160,9 +160,9 @@ class IntentAnalysisStep implements ChainStep {
 
 ```typescript
 class DirectLLMStep implements ChainStep {
-  name = 'direct_llm';
-  
-  async *execute(context: ChainContext): AsyncIterable<string>
+    name = 'direct_llm'
+
+    async *execute(context: ChainContext): AsyncIterable<string>
 }
 ```
 
@@ -177,9 +177,9 @@ ReAct执行步骤，处理需要工具调用的场景。
 
 ```typescript
 class ReActExecutionStep implements ChainStep {
-  name = 'react_execution';
-  
-  async *execute(context: ChainContext): AsyncIterable<string>
+    name = 'react_execution'
+
+    async *execute(context: ChainContext): AsyncIterable<string>
 }
 ```
 
@@ -195,9 +195,9 @@ class ReActExecutionStep implements ChainStep {
 
 ```typescript
 class ResponseEnhancementStep implements ChainStep {
-  name = 'response_enhancement';
-  
-  async *execute(context: ChainContext): AsyncIterable<string>
+    name = 'response_enhancement'
+
+    async *execute(context: ChainContext): AsyncIterable<string>
 }
 ```
 
@@ -215,12 +215,12 @@ class ResponseEnhancementStep implements ChainStep {
 
 ```typescript
 class PromptReActExecutor {
-  constructor(params: { agent: Agent })
-  
-  run(
-    messages: BaseMessage[],
-    options?: ReActExecutorOptions
-  ): AsyncIterable<string>
+    constructor(params: { agent: Agent })
+
+    run(
+        messages: BaseMessage[],
+        options?: ReActExecutorOptions
+    ): AsyncIterable<string>
 }
 ```
 
@@ -235,12 +235,12 @@ class PromptReActExecutor {
 
 ```typescript
 class FunctionReActExecutor {
-  constructor(params: { agent: Agent })
-  
-  run(
-    messages: BaseMessage[],
-    options?: ReActExecutorOptions
-  ): AsyncIterable<string>
+    constructor(params: { agent: Agent })
+
+    run(
+        messages: BaseMessage[],
+        options?: ReActExecutorOptions
+    ): AsyncIterable<string>
 }
 ```
 
@@ -258,14 +258,14 @@ MCP服务端基类，用于创建外部工具服务。
 ```typescript
 class MCPServer {
   constructor(config: { name: string; version: string })
-  
+
   mcp.tool(
     name: string,
     description: string,
     inputSchema: unknown,
     handler: (args: any) => Promise<any>
   )
-  
+
   listen(port: number, host: string): Promise<void>
 }
 ```
@@ -273,29 +273,29 @@ class MCPServer {
 #### 使用示例
 
 ```typescript
-import { MCPServer } from './agent/index.js';
+import { MCPServer } from './agent/index.js'
 
-const server = new MCPServer({ 
-  name: 'weather-server', 
-  version: '1.0.0' 
-});
+const server = new MCPServer({
+    name: 'weather-server',
+    version: '1.0.0'
+})
 
 server.mcp.tool(
-  'getWeather',
-  '获取当前天气信息',
-  {
-    type: 'object',
-    properties: {
-      city: { type: 'string', description: '城市名称' }
-    }
-  },
-  async (args) => ({
-    content: [{ type: 'text', text: `北京天气：晴天，25°C` }],
-    structuredContent: { weather: '晴天', temperature: 25 }
-  })
-);
+    'getWeather',
+    '获取当前天气信息',
+    {
+        type: 'object',
+        properties: {
+            city: { type: 'string', description: '城市名称' }
+        }
+    },
+    async args => ({
+        content: [{ type: 'text', text: `北京天气：晴天，25°C` }],
+        structuredContent: { weather: '晴天', temperature: 25 }
+    })
+)
 
-await server.listen(3101, 'localhost');
+await server.listen(3101, 'localhost')
 ```
 
 ### ClientManager 类
@@ -304,9 +304,9 @@ MCP客户端管理器，负责连接和管理外部工具。
 
 ```typescript
 class ClientManager {
-  connect(servers: ExternalServerConfig[]): Promise<void>
-  getAllTools(): Promise<ExternalTool[]>
-  callTool(name: string, args: Record<string, unknown>): Promise<any>
+    connect(servers: ExternalServerConfig[]): Promise<void>
+    getAllTools(): Promise<ExternalTool[]>
+    callTool(name: string, args: Record<string, unknown>): Promise<any>
 }
 ```
 
@@ -318,12 +318,12 @@ class ClientManager {
 
 ```typescript
 interface ChainContext {
-  messages: BaseMessage[];
-  agent: Agent;
-  options: ChainOptions;
-  intentResult?: IntentResult;
-  reactResults?: string[];
-  finalAnswer?: string;
+    messages: BaseMessage[]
+    agent: Agent
+    options: ChainOptions
+    intentResult?: IntentResult
+    reactResults?: string[]
+    finalAnswer?: string
 }
 ```
 
@@ -333,8 +333,8 @@ interface ChainContext {
 
 ```typescript
 interface ChainStep {
-  name: string;
-  execute(context: ChainContext): Promise<void> | AsyncIterable<string>;
+    name: string
+    execute: (context: ChainContext) => Promise<void> | AsyncIterable<string>
 }
 ```
 
@@ -344,8 +344,8 @@ interface ChainStep {
 
 ```typescript
 interface IntentResult {
-  mode: 'direct' | 'react';
-  reason: string;
+    mode: 'direct' | 'react'
+    reason: string
 }
 ```
 
@@ -355,9 +355,9 @@ interface IntentResult {
 
 ```typescript
 interface ExternalServerConfig {
-  name: string;
-  version: string;
-  url: string;
+    name: string
+    version: string
+    url: string
 }
 ```
 
@@ -367,9 +367,9 @@ interface ExternalServerConfig {
 
 ```typescript
 interface ExternalTool {
-  name: string;
-  description?: string;
-  inputSchema?: unknown;
+    name: string
+    description?: string
+    inputSchema?: unknown
 }
 ```
 
@@ -379,13 +379,14 @@ interface ExternalTool {
 
 ```typescript
 try {
-  const chain = new AgentChain(agent);
-  for await (const chunk of chain.runChain(messages)) {
-    process.stdout.write(chunk);
-  }
-} catch (error) {
-  console.error('链式处理失败:', error);
-  // 实现错误恢复逻辑
+    const chain = new AgentChain(agent)
+    for await (const chunk of chain.runChain(messages)) {
+        process.stdout.write(chunk)
+    }
+}
+catch (error) {
+    console.error('链式处理失败:', error)
+    // 实现错误恢复逻辑
 }
 ```
 
@@ -393,44 +394,45 @@ try {
 
 ```typescript
 const timeout = setTimeout(() => {
-  // 处理超时逻辑
-}, 30000);
+    // 处理超时逻辑
+}, 30000)
 
 try {
-  for await (const chunk of chain.runChain(messages)) {
-    process.stdout.write(chunk);
-  }
-} finally {
-  clearTimeout(timeout);
+    for await (const chunk of chain.runChain(messages)) {
+        process.stdout.write(chunk)
+    }
+}
+finally {
+    clearTimeout(timeout)
 }
 ```
 
 ### 3. 自定义步骤
 
 ```typescript
-import { ChainStep, ChainContext } from './chain/types.js';
+import { ChainContext, ChainStep } from './chain/types.js'
 
 class CustomStep implements ChainStep {
-  name = 'custom_step';
-  
-  async execute(context: ChainContext): Promise<void> {
+    name = 'custom_step'
+
+    async execute(context: ChainContext): Promise<void> {
     // 自定义逻辑
-    console.log('执行自定义步骤');
-  }
+        console.log('执行自定义步骤')
+    }
 }
 
 // 在AgentChain中注册
-this.steps.push(new CustomStep());
+this.steps.push(new CustomStep())
 ```
 
 ### 4. 性能监控
 
 ```typescript
-const startTime = Date.now();
+const startTime = Date.now()
 for await (const chunk of chain.runChain(messages)) {
-  process.stdout.write(chunk);
+    process.stdout.write(chunk)
 }
-console.log(`处理耗时: ${Date.now() - startTime}ms`);
+console.log(`处理耗时: ${Date.now() - startTime}ms`)
 ```
 
 ## 🔍 调试与监控
@@ -439,20 +441,22 @@ console.log(`处理耗时: ${Date.now() - startTime}ms`);
 
 ```typescript
 // 设置日志级别
-process.env.LOG_LEVEL = 'debug'; // debug | info | warn | error
+// debug | info | warn | error
 
 // 创建日志记录器
-import { createLogger } from './utils/logger.js';
-const logger = createLogger('MyModule');
+import { createLogger } from './utils/logger.js'
+
+process.env.LOG_LEVEL = 'debug'
+const logger = createLogger('MyModule')
 ```
 
 ### 性能监控
 
 ```typescript
 // 监控工具调用性能
-const toolStartTime = Date.now();
-const result = await agent.clientManager.callTool('getWeather', { city: '北京' });
-console.log(`工具调用耗时: ${Date.now() - toolStartTime}ms`);
+const toolStartTime = Date.now()
+const result = await agent.clientManager.callTool('getWeather', { city: '北京' })
+console.log(`工具调用耗时: ${Date.now() - toolStartTime}ms`)
 ```
 
 ## 🚨 常见问题
@@ -481,4 +485,4 @@ A: 创建新的MCPServer实例，注册工具，并在Agent初始化时传入配
 
 ---
 
-如有问题或建议，请提交Issue或Pull Request。 
+如有问题或建议，请提交Issue或Pull Request。

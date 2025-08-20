@@ -1,5 +1,5 @@
 export interface MCPServerDescription {
-  name: string;
-  version: string;
-  url: string;
+    name: string
+    version: string
+    url: string
 }
