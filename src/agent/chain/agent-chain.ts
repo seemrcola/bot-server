@@ -21,10 +21,10 @@ export class AgentChain {
     constructor(agent: Agent) {
         this.agent = agent
         this.steps = [
-            new IntentAnalysisStep(),
-            new DirectLLMStep(),
-            new ReActExecutionStep(),
-            new ResponseEnhancementStep(),
+            new IntentAnalysisStep(), // 意图分析
+            new DirectLLMStep(), // 直接LLM
+            new ReActExecutionStep(), // ReAct执行
+            new ResponseEnhancementStep(), // 响应增强
         ]
     }
 
@@ -33,7 +33,7 @@ export class AgentChain {
      */
     public async* runChain(
         messages: BaseMessage[],
-    options: ChainOptions = {},
+        options: ChainOptions = {},
     ): AsyncIterable<string> {
         // 等待Agent初始化完成
         await this.agent.ready

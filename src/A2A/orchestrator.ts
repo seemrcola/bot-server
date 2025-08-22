@@ -58,6 +58,7 @@ export async function runWithLeader(
     const agent = agentManager.getAgent(chosenName!)!
     logger.info(`使用 Agent: ${chosenName}（原因: ${reason}）`)
 
+    // 创建 AgentChain 实例
     const chain = new AgentChain(agent)
     const chainOptions: any = {
         maxSteps: options.maxSteps ?? 8,
@@ -66,5 +67,7 @@ export async function runWithLeader(
     if (typeof options.temperature === 'number') {
         chainOptions.temperature = options.temperature
     }
+
+    // 执行链式流程
     return chain.runChain(messages, chainOptions)
 }
