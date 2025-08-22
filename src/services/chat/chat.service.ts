@@ -15,6 +15,13 @@ async function ensureBootstrap(): Promise<void> {
     throw new Error('AgentManager 尚未初始化（缺少全局就绪 Promise）。')
 }
 
+/**
+ * ChatService 类是整个应用的核心，负责管理聊天请求、Agent 实例、系统提示词等。
+ * 它通过 AgentManager 管理 Agent 实例，并提供 runChainStream 方法来处理聊天请求。
+ * @param messages - 聊天消息
+ * @param options - 聊天选项
+ * @returns 流式聊天响应
+ */
 class ChatService {
     /**
      * 基于Agent链式处理的流式聊天：

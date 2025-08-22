@@ -29,7 +29,12 @@ export async function initLeaderA2A(externalMCPServers: MCPServerDescription[]):
 
     // 3) 注册到 AgentManager
     const agentManager = new AgentManager()
-    agentManager.registerLeader(leader.name, mainAgent, leader.agentDescription, { keywords: ['leader', 'default'] })
+    agentManager.registerLeader(
+        leader.name,
+        mainAgent,
+        leader.agentDescription,
+        { keywords: ['leader', 'default'] },
+    )
     logger.info(`Leader 已初始化并注册: ${leader.name}`)
 
     // 4) 使用集中导出的 dashboards 列表，逐个注册为 Leader 的子 Agent

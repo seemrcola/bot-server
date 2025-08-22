@@ -51,10 +51,10 @@ export class MCPServer {
             // 如果会话ID不存在，且是初始化请求，则创建新的传输
             else if (!sessionId && isInitializeRequest(req.body)) {
                 /**********************************************
-         * 创建一个传输层，并设置会话ID生成器和会话初始化回调
-         * 当会话初始化时，将传输层添加到传输层映射中
-         * 当传输层关闭时，从传输层映射中删除传输层
-         **********************************************/
+                 * 创建一个传输层，并设置会话ID生成器和会话初始化回调
+                 * 当会话初始化时，将传输层添加到传输层映射中
+                 * 当传输层关闭时，从传输层映射中删除传输层
+                 **********************************************/
                 transport = new StreamableHTTPServerTransport({
                     sessionIdGenerator: () => randomUUID(),
                     onsessioninitialized: (newSessionId) => { transports[newSessionId] = transport },
@@ -67,13 +67,13 @@ export class MCPServer {
                 await this.mcpServer.connect(transport as any)
 
                 /**********************************************
-         * 处理请求
-         * 这里的传输层可以处理请求并且返回响应 由传输层自身支持
-         * 三个参数分别是：
-         * 1. 请求对象
-         * 2. 响应对象
-         * 3. 请求体
-         **********************************************/
+                 * 处理请求
+                 * 这里的传输层可以处理请求并且返回响应 由传输层自身支持
+                 * 三个参数分别是：
+                 * 1. 请求对象
+                 * 2. 响应对象
+                 * 3. 请求体
+                 **********************************************/
                 await transport.handleRequest(req, res, req.body)
             }
             // 如果会话ID不存在，且不是初始化请求，则返回400错误

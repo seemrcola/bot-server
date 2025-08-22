@@ -10,6 +10,12 @@ const BASE_SYSTEM_PROMPT = `
 回复内容请使用 Markdown 格式。
 `
 
+/**
+ * Agent 类是整个应用的核心，负责管理 LLM 实例、外部服务、系统提示词等。
+ * @param llm - LLM 实例
+ * @param externalServers - 外部服务列表
+ * @param systemPrompt - 系统提示词
+ */
 export class Agent {
     private llm: BaseLanguageModel
     private systemPrompt: string
@@ -59,8 +65,6 @@ export class Agent {
         return this.systemPrompt
     }
 
-    // 资源池相关功能已移除
-
     /**
      * 按需获取当前可用工具列表（透传自 ClientManager，避免本地缓存陈旧）。
      */
@@ -82,6 +86,4 @@ export class Agent {
             throw error
         }
     }
-
-    // 旧的单步流程与相关私有方法已移除；Agent 仅作为依赖提供者
 }

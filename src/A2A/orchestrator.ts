@@ -13,6 +13,12 @@ export interface OrchestratorOptions {
     agentName?: string | undefined // 显式指定要执行的 Agent；通常不指定，由系统进行 LLM 路由
 }
 
+/**
+ * 运行编排（显式 → LLM → Leader 兜底），对外唯一执行入口
+ * @param messages - 聊天消息
+ * @param options - 聊天选项
+ * @returns 流式聊天响应
+ */
 export async function runWithLeader(
     messages: BaseMessage[],
     options: OrchestratorOptions = {},

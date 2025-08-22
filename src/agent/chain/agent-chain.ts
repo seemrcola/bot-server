@@ -35,8 +35,10 @@ export class AgentChain {
         messages: BaseMessage[],
     options: ChainOptions = {},
     ): AsyncIterable<string> {
-    // 等待Agent初始化完成
+        // 等待Agent初始化完成
         await this.agent.ready
+
+        logger.info('AgentChain runChain start')
 
         // 创建上下文
         const builtOptions: ChainOptions = {

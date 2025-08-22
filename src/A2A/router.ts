@@ -26,6 +26,11 @@ function getLastHumanText(messages: BaseMessage[]): string {
 
 /**
  * 使用 LLM 进行“精准路由”：在已注册的子 Agent 与 Leader 之间选择最合适的 Agent。
+ * @param params - 路由参数
+ * @param params.agentManager - AgentManager 实例
+ * @param params.messages - 用户消息
+ * @param params.threshold - 置信度阈值，默认0.5
+ * @returns 路由结果
  * 返回 [error, data]：
  *  - 命中： [null, { name, reason, confidence }]
  *  - 失败： [string, null]，不做任何兜底（由 orchestrator 负责回退）
@@ -70,7 +75,7 @@ export async function selectAgentByLLM(params: {
         '}',
         '选择规则：',
         '- 若用户需求与某个子 Agent 的名称/关键词/别名强相关，则选该子 Agent；',
-        '- 否则选择 leader-agent 作为兜底。',
+        '- 若不确定或均不合适，请将 target 置为空字符串。',
     ].join('\n'))
 
     const human = new HumanMessage([
@@ -78,8 +83,6 @@ export async function selectAgentByLLM(params: {
         JSON.stringify(userText),
         '\n\n候选子 Agent 列表：',
         JSON.stringify(catalog, null, 2),
-        '\n\nLeader 名称：',
-        leaderName,
         '\n\n请输出 JSON：',
     ].join(''))
 
@@ -94,7 +97,7 @@ export async function selectAgentByLLM(params: {
 
     const text = String((raw as any)?.content ?? '').trim()
     try {
-    // 解析 JSON 结果
+        // 解析 JSON 结果
         const start = text.indexOf('{')
         const end = text.lastIndexOf('}')
         const slice = start >= 0 && end >= start ? text.slice(start, end + 1) : text
