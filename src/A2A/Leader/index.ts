@@ -1,6 +1,7 @@
 import getPort, { portNumbers } from 'get-port'
 import { createLogger } from '../../utils/logger.js'
 import { startSystemMCP } from './system.js'
+import { startTwoSumMCP } from './twoSum.js'
 import { startWeatherMCP } from './weather.js'
 
 const logger = createLogger('Leader')
@@ -8,6 +9,7 @@ const logger = createLogger('Leader')
 const mcpServersDescription = [
     { name: 'weather-mcp-server', starter: startWeatherMCP },
     { name: 'system-mcp-server', starter: startSystemMCP },
+    { name: 'two-sum-mcp-server', starter: startTwoSumMCP },
 ]
 
 export async function startLeaderServers() {
