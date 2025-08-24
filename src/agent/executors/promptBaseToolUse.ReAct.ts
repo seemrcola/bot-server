@@ -42,7 +42,7 @@ export class PromptReActExecutor {
 
     public async* run(
         messages: BaseMessage[],
-    options: ReActExecutorOptions = {},
+        options: ReActExecutorOptions = {},
     ): AsyncIterable<string> {
         const maxSteps = options.maxSteps ?? MAX_STEPS
 
@@ -56,7 +56,7 @@ export class PromptReActExecutor {
 
         const toolCatalog = availableTools.map(t => ({
             name: t.name,
-            description: t.description ?? '',
+            description: t.annotations?.title ?? '',
             inputSchema: t.inputSchema ?? {},
         }))
 

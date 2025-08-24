@@ -17,8 +17,12 @@ export interface ExternalServerConfig {
  */
 export interface ExternalTool {
     name: string
-    description?: string
     inputSchema?: unknown
+    annotations?: {
+        title?: string
+        [key: string]: string
+    }
+    [key: string]: any
 }
 
 /**

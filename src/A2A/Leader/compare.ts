@@ -8,14 +8,14 @@ import { MCPServer } from '../../agent/index.js'
 
 import { createLogger } from '../../utils/logger.js'
 
-const logger = createLogger('WeatherMCP')
+const logger = createLogger('CompareMCP')
 
 /**
  * 创建并启动一个测试用的外部 MCP 服务器。
  * @param port 服务器监听的端口
  * @param host 服务器监听的主机
  */
-export async function startWeatherMCP(
+export async function startCompareMCP(
     name: string,
     version: string,
     port: number,
@@ -25,21 +25,22 @@ export async function startWeatherMCP(
 
     // 注册这个工具
     server.mcp.tool(
-        'getWeather',
+        'compare',
         {
-            city: z.string().describe('城市名称'),
+            num1: z.number().describe('第一个数'),
+            num2: z.number().describe('第二个数'),
         },
-        { title: '获取当前的天气信息。' },
-        async ({ city }) => {
-            const weather = '晴天'
-            logger.info(`外部工具 getWeather 被调用，city=${city}，返回天气: ${weather}`)
+        { title: '比较两个数的大小。' },
+        async ({ num1, num2 }) => {
+            const result = num1 > num2 ? 'num1 大于 num2' : 'num1 小于 num2'
+            logger.info(`外部工具 compare 被调用，num1=${num1}，num2=${num2}，返回结果: ${result}`)
             return {
                 content: [{
                     type: 'text',
-                    text: `城市 ${city} 的当前天气是 ${weather}`,
+                    text: `两个数比较的结果是 ${result}`,
                 }],
                 structuredContent: {
-                    weather,
+                    result,
                 },
             }
         },

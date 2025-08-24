@@ -1,13 +1,13 @@
 import getPort, { portNumbers } from 'get-port'
 import { createLogger } from '../../utils/logger.js'
+import { startCompareMCP } from './compare.js'
 import { startSystemMCP } from './system.js'
 import { startTwoSumMCP } from './twoSum.js'
-import { startWeatherMCP } from './weather.js'
 
 const logger = createLogger('Leader')
 
 const mcpServersDescription = [
-    { name: 'weather-mcp-server', starter: startWeatherMCP },
+    { name: 'compare-mcp-server', starter: startCompareMCP },
     { name: 'system-mcp-server', starter: startSystemMCP },
     { name: 'two-sum-mcp-server', starter: startTwoSumMCP },
 ]
