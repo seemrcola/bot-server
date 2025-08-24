@@ -25,11 +25,8 @@ flowchart TD
     N --> O{"direct or react"}
     O -- "direct" --> P["DirectLLMStep"]
     O -- "react"  --> Q["ReActExecutionStep"]
-    Q --> R{"final_answer 存在?"}
-    R -- "是" --> S1["ResponseEnhancementStep"]
-    R -- "否" --> S2["等待用户澄清/恢复"]
-    S1 --> S
-    S2 --> S
+    Q --> R["ResponseEnhancementStep (仅在 final_answer 存在)"]
+    R --> S
     P --> S["Stream Output"]
   end
 

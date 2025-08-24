@@ -9,7 +9,7 @@ import { extractDisplayableTextFromToolResult, extractText } from './utils.js'
 const logger = createLogger('ReActExecutor')
 const MAX_STEPS = 8
 
-export type ReActActionType = 'tool_call' | 'user_input' | 'final_answer'
+export type ReActActionType = 'tool_call' | 'final_answer'
 
 export interface ReActStep {
     thought: string
@@ -25,10 +25,6 @@ export interface ReActStep {
 export interface ReActExecutorOptions {
     maxSteps?: number
     temperature?: number
-    /**
-     * 用于“恢复运行”的历史步骤种子
-     */
-    initialSteps?: ReActStep[]
 }
 
 export class PromptReActExecutor {
@@ -64,7 +60,7 @@ export class PromptReActExecutor {
             inputSchema: t.inputSchema ?? {},
         }))
 
-        const steps: ReActStep[] = Array.isArray(options.initialSteps) ? [...options.initialSteps] : []
+        const steps: ReActStep[] = []
 
         for (let i = 0; i < maxSteps; i++) {
             const promptMessages: BaseMessage[] = [
@@ -76,7 +72,7 @@ export class PromptReActExecutor {
                         'JSON 结构如下：',
                         '{',
                         '  "thought": "当前推理步骤的逻辑说明",',
-                        '  "action": "下一步动作类型（如：tool_call, user_input, final_answer）",',
+                        '  "action": "下一步动作类型（如：tool_call, final_answer）",',
                         '  "action_input": {',
                         '    "tool_name": "工具名（若action为tool_call）",',
                         '    "parameters": {}',
@@ -88,7 +84,7 @@ export class PromptReActExecutor {
                         '- 只能输出一个 JSON 对象；',
                         '- 当 action 为 tool_call 时，必须给出 action_input.tool_name 和 action_input.parameters；',
                         '- 当 action 为 final_answer 时，必须给出 answer；',
-                        '- 当需要澄清用户输入时，将 action 设为 user_input 并简述需要的额外信息。',
+                        '- 仅当必要工具已调用且信息充分时，才可输出 final_answer。',
                     ].join('\n'),
                 ),
                 new HumanMessage(
@@ -140,11 +136,6 @@ export class PromptReActExecutor {
             yield JSON.stringify(step)
 
             if (step.action === 'final_answer') {
-                return
-            }
-
-            if (step.action === 'user_input') {
-                // 需要用户澄清，停止自动流程
                 return
             }
 

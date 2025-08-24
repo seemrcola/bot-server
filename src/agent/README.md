@@ -186,7 +186,7 @@ interface ChainOptions {
 ```json
 {
     "thought": "当前推理步骤的逻辑说明",
-    "action": "tool_call | user_input | final_answer",
+    "action": "tool_call | final_answer",
     "action_input": {
         "tool_name": "工具名（action=tool_call时）",
         "parameters": {}

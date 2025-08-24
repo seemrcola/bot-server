@@ -26,14 +26,24 @@ export async function startWeatherMCP(
     server.mcp.tool(
         'getWeather',
         '获取当前的天气信息。',
-        {}, // 无输入参数，传入空对象
-        async () => {
+        {
+            type: 'object',
+            properties: {
+                city: {
+                    type: 'string',
+                    description: '城市名称',
+                },
+            },
+            required: ['city'],
+        },
+        async (input) => {
+            const city = input['city']
             const weather = '晴天'
             logger.info(`外部工具 getWeather 被调用，返回天气: ${weather}`)
             return {
                 content: [{
                     type: 'text',
-                    text: `当前天气是 ${weather}`,
+                    text: `城市 ${city} 的当前天气是 ${weather}`,
                 }],
                 structuredContent: {
                     weather,

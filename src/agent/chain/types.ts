@@ -14,10 +14,6 @@ export interface ChainOptions {
     maxSteps?: number
     reactVerbose?: boolean
     temperature?: number
-    /**
-     * ReAct 恢复时注入的历史步骤
-     */
-    reactInitialSteps?: any[]
 }
 
 export interface IntentResult {

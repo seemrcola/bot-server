@@ -32,12 +32,12 @@
           <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
             <div>
               <div class="text-sm font-medium text-slate-900 tracking-tight">对话</div>
-              <div class="text-xs text-slate-500">普通对话 / 工具调用 / 用户澄清（挂起-恢复）</div>
+              <div class="text-xs text-slate-500">普通对话 / 工具调用</div>
             </div>
             <div class="flex items-center gap-2">
               <button data-preset="hello" class="preset-btn px-2.5 py-1.5 text-xs rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100">普通对话</button>
               <button data-preset="tool" class="preset-btn px-2.5 py-1.5 text-xs rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100">工具调用</button>
-              <button data-preset="clarify" class="preset-btn px-2.5 py-1.5 text-xs rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100">用户澄清</button>
+              
             </div>
           </div>
 
@@ -46,13 +46,7 @@
           </div>
 
           <div class="border-t border-slate-100 p-4">
-            <div id="clarifyBar" class="hidden mb-3">
-              <div class="flex items-center gap-2">
-                <input id="clarifyInput" class="flex-1 px-3 py-2 rounded-lg bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200" placeholder="请补充澄清信息，例如：北京" />
-                <button id="resumeBtn" class="px-3 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100">恢复执行</button>
-              </div>
-              <div class="mt-1 text-xs text-slate-500">模型请求澄清后将挂起，填写补充并恢复即可继续推理</div>
-            </div>
+            
 
             <div class="flex items-end gap-2">
               <textarea id="userInput" class="flex-1 px-3 py-2 rounded-lg bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200" rows="2" placeholder="输入你的问题..."></textarea>
@@ -68,7 +62,7 @@
             <div class="text-sm font-medium text-slate-900 tracking-tight">ReAct 步骤</div>
             <div class="text-xs text-slate-500">reactVerbose=true 时返回 JSON 行</div>
           </div>
-          <div id="stepsBox" class="h-[60vh] overflow-y-auto p-4 space-y-2 text-xs font-mono text-slate-800 bg-white scrollbar-thin"></div>
+          <div id="stepsBox" class="h-[60vh] overflow-y-auto overflow-x-hidden p-4 space-y-2 text-xs font-mono text-slate-800 bg-white scrollbar-thin break-words"></div>
         </aside>
       </main>
     </div>
@@ -93,9 +87,7 @@
       const stepsBox = $('stepsBox')
       const userInput = $('userInput')
       const sendBtn = $('sendBtn')
-      const clarifyBar = $('clarifyBar')
-      const clarifyInput = $('clarifyInput')
-      const resumeBtn = $('resumeBtn')
+      
       const clearBtn = $('clearBtn')
       const statePill = $('statePill')
 
@@ -105,7 +97,6 @@
       const presets = document.querySelectorAll('.preset-btn')
 
       let cachedReactSteps = []
-      let needsUserInput = false
 
       function setState(text, color) {
         statePill.textContent = text
@@ -130,7 +121,7 @@
       function appendStepLine(jsonLine) {
         const line = document.createElement('div')
         line.textContent = jsonLine
-        line.className = 'px-2 py-1 bg-white rounded border border-slate-200'
+        line.className = 'px-2 py-1 bg-white rounded border border-slate-200 whitespace-pre-wrap break-words'
         stepsBox.appendChild(line)
         stepsBox.scrollTop = stepsBox.scrollHeight
       }
@@ -138,9 +129,7 @@
       function clearUI() {
         chatList.innerHTML = ''
         stepsBox.innerHTML = ''
-        clarifyBar.classList.add('hidden')
         cachedReactSteps = []
-        needsUserInput = false
         setState('空闲')
       }
 
@@ -153,7 +142,6 @@
           body: JSON.stringify({
             messages,
             reactVerbose: true,
-            reactInitialSteps: options.reactInitialSteps || undefined,
           })
         })
 
@@ -180,11 +168,7 @@
               const step = JSON.parse(line)
               cachedReactSteps.push(step)
               appendStepLine(line)
-              if (step.action === 'final_answer' && typeof step.answer === 'string') {
-                hasFinal = true
-              } else if (step.action === 'user_input') {
-                needsUserInput = true
-              }
+              if (step.action === 'final_answer' && typeof step.answer === 'string') hasFinal = true
               continue
             } catch (_) {}
 
@@ -205,39 +189,8 @@
         const { hasFinal } = await streamChat([
           { type: 'human', content: text }
         ])
-        if (!hasFinal && needsUserInput) {
-          clarifyBar.classList.remove('hidden')
-          setState('等待澄清', 'bg-amber-50 text-amber-800')
-        } else {
-          setState('完成', 'bg-emerald-50 text-emerald-700')
-        }
+        setState('完成', 'bg-emerald-50 text-emerald-700')
         userInput.value = ''
-      })
-
-      resumeBtn.addEventListener('click', async () => {
-        const clarification = (clarifyInput.value || '').trim()
-        if (!clarification) return
-        setState('恢复中', 'bg-amber-50 text-amber-800')
-        appendUser(`澄清：${clarification}`)
-
-        // 写入到最后一个 user_input 的 observation
-        for (let i = cachedReactSteps.length - 1; i >= 0; i--) {
-          const step = cachedReactSteps[i]
-          if (step && step.action === 'user_input') { step.observation = clarification; break }
-        }
-
-        const { hasFinal } = await streamChat([
-          { type: 'human', content: `澄清补充：${clarification}` }
-        ], { reactInitialSteps: cachedReactSteps })
-
-        if (!hasFinal && needsUserInput) {
-          clarifyBar.classList.remove('hidden')
-          setState('等待澄清', 'bg-amber-50 text-amber-800')
-        } else {
-          clarifyBar.classList.add('hidden')
-          setState('完成', 'bg-emerald-50 text-emerald-700')
-        }
-        clarifyInput.value = ''
       })
 
       clearBtn.addEventListener('click', clearUI)
@@ -247,7 +200,6 @@
           const t = btn.getAttribute('data-preset')
           if (t === 'hello') userInput.value = '你好，请用三句话介绍你自己'
           if (t === 'tool') userInput.value = '获取当前系统信息与北京天气，并整理成要点列表'
-          if (t === 'clarify') userInput.value = '帮我查天气，但如果我没说城市就问我'
         })
       })
     </script>

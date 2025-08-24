@@ -56,7 +56,6 @@ flowchart TD
    - 构造提示：系统提示 + ReAct 产出约束 + 工具清单 + 历史步骤 + 用户消息
    - 调用 LLM 得到一步 JSON 决策（`thought`、`action`、`action_input`）
    - 若 `action=tool_call`：使用 `ClientManager.callTool(tool_name, parameters)` 执行，提取文本作为 `observation` 写回该步骤
-   - 若 `action=user_input`：挂起并返回（携带 `react_steps`），等待用户补充后以 `initialSteps` 恢复
    - 若 `action=final_answer`：返回最终答案并终止
 3. **响应增强阶段**：仅在存在 `final_answer` 时，`ResponseEnhancementStep` 将ReAct结果转换为用户友好的Markdown
 4. **输出控制**：控制器按 `reactVerbose` 配置决定输出内容
@@ -78,17 +77,13 @@ flowchart TD
 
   %% 终止类分支（与 tool_call 汇合）
   decision -- final_answer --> final[提取最终答案]
-  decision -- user_input  --> wait[挂起并返回 need_user_input + react_steps]
-  wait -- 用户补充 + 传回 react_steps --> resume[恢复：注入 initialSteps]
-  resume --> invoke
 
   timeout --> stop[终止 ReAct 循环]
   final   --> stop
-  %% 挂起并非终止，等待恢复
 
   stop --> enhance{存在 final_answer?}
   enhance -- 是 --> enhanceStep[ResponseEnhancementStep 增强]
-  enhance -- 否 --> output[直接输出（等待澄清流程）]
+  enhance -- 否 --> output[直接输出]
   enhanceStep --> output
 ```
 

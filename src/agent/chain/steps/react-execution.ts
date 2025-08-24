@@ -23,8 +23,6 @@ export class ReActExecutionStep implements ChainStep {
         if (typeof temperature === 'number') {
             runOptions.temperature = temperature
         }
-        // 透传恢复用的初始步骤（若存在）
-        runOptions.initialSteps = context.options.reactInitialSteps
         // 创建执行器
         const exec = executor.run(context.messages, runOptions)
         // 消费执行器

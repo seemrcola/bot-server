@@ -7,7 +7,7 @@ const logger = createLogger('ChatController')
 
 export async function streamChatHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-        const { messages, sessionId, reactVerbose, agentName, temperature, reactInitialSteps } = req.body
+        const { messages, sessionId, reactVerbose, agentName, temperature } = req.body
 
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
             res
@@ -27,7 +27,6 @@ export async function streamChatHandler(req: Request, res: Response, next: NextF
             agentName,
             reactVerbose,
             temperature,
-            reactInitialSteps,
         })
 
         // 直接流式输出结果
