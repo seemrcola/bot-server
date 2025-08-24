@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bot Server 对话测试</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+      .scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 9999px; }
+      .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+      .prose pre { white-space: pre-wrap; }
+    </style>
+  </head>
+  <body class="min-h-screen bg-slate-50">
+    <div class="max-w-6xl mx-auto p-6">
+      <header class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-3">
+          <div class="h-9 w-9 rounded-full bg-white ring-1 ring-slate-300 text-slate-900 grid place-items-center text-sm font-semibold">AI</div>
+          <h1 class="text-lg font-medium text-slate-900 tracking-tight">Bot Server 对话测试</h1>
+          <span id="statePill" class="ml-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">空闲</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <input id="baseUrl" class="px-3 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 text-sm w-[320px] focus:outline-none focus:ring-2 focus:ring-slate-200" value="http://localhost:3000" />
+          <button id="clearBtn" class="px-3 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100">清空</button>
+        </div>
+      </header>
+
+      <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Chat Column -->
+        <section class="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
+            <div>
+              <div class="text-sm font-medium text-slate-900 tracking-tight">对话</div>
+              <div class="text-xs text-slate-500">普通对话 / 工具调用 / 用户澄清（挂起-恢复）</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button data-preset="hello" class="preset-btn px-2.5 py-1.5 text-xs rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100">普通对话</button>
+              <button data-preset="tool" class="preset-btn px-2.5 py-1.5 text-xs rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100">工具调用</button>
+              <button data-preset="clarify" class="preset-btn px-2.5 py-1.5 text-xs rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100">用户澄清</button>
+            </div>
+          </div>
+
+          <div id="chatList" class="h-[60vh] overflow-y-auto p-4 space-y-4 scrollbar-thin bg-white">
+            <!-- messages will appear here -->
+          </div>
+
+          <div class="border-t border-slate-100 p-4">
+            <div id="clarifyBar" class="hidden mb-3">
+              <div class="flex items-center gap-2">
+                <input id="clarifyInput" class="flex-1 px-3 py-2 rounded-lg bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200" placeholder="请补充澄清信息，例如：北京" />
+                <button id="resumeBtn" class="px-3 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100">恢复执行</button>
+              </div>
+              <div class="mt-1 text-xs text-slate-500">模型请求澄清后将挂起，填写补充并恢复即可继续推理</div>
+            </div>
+
+            <div class="flex items-end gap-2">
+              <textarea id="userInput" class="flex-1 px-3 py-2 rounded-lg bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200" rows="2" placeholder="输入你的问题..."></textarea>
+              <button id="sendBtn" class="px-4 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800">发送</button>
+            </div>
+            <div class="mt-2 text-xs text-slate-500">提示：服务地址使用上方 Base URL（默认 http://localhost:3000）</div>
+          </div>
+        </section>
+
+        <!-- ReAct Steps Column -->
+        <aside class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="px-4 py-3 border-b border-slate-100 bg-slate-50/60">
+            <div class="text-sm font-medium text-slate-900 tracking-tight">ReAct 步骤</div>
+            <div class="text-xs text-slate-500">reactVerbose=true 时返回 JSON 行</div>
+          </div>
+          <div id="stepsBox" class="h-[60vh] overflow-y-auto p-4 space-y-2 text-xs font-mono text-slate-800 bg-white scrollbar-thin"></div>
+        </aside>
+      </main>
+    </div>
+
+    <template id="tpl-user">
+      <div class="flex items-start gap-3 ml-auto flex-row-reverse">
+        <div class="shrink-0 h-8 w-8 rounded-full bg-slate-200 grid place-items-center text-slate-600">你</div>
+        <div class="rounded-2xl px-4 py-2 max-w-[80%] bg-slate-900 text-white"></div>
+      </div>
+    </template>
+    <template id="tpl-ai">
+      <div class="flex items-start gap-3">
+        <div class="shrink-0 h-8 w-8 rounded-full bg-white ring-1 ring-slate-300 grid place-items-center text-slate-900">AI</div>
+        <div class="bg-white border border-slate-200 rounded-2xl px-4 py-2 max-w-[80%] text-slate-900"></div>
+      </div>
+    </template>
+
+    <script>
+      const $ = (id) => document.getElementById(id)
+      const baseUrl = $('baseUrl')
+      const chatList = $('chatList')
+      const stepsBox = $('stepsBox')
+      const userInput = $('userInput')
+      const sendBtn = $('sendBtn')
+      const clarifyBar = $('clarifyBar')
+      const clarifyInput = $('clarifyInput')
+      const resumeBtn = $('resumeBtn')
+      const clearBtn = $('clearBtn')
+      const statePill = $('statePill')
+
+      const tplUser = $('tpl-user')
+      const tplAi = $('tpl-ai')
+
+      const presets = document.querySelectorAll('.preset-btn')
+
+      let cachedReactSteps = []
+      let needsUserInput = false
+
+      function setState(text, color) {
+        statePill.textContent = text
+        statePill.className = 'ml-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium '
+          + (color || 'bg-indigo-50 text-indigo-700')
+      }
+
+      function appendUser(text) {
+        const node = tplUser.content.firstElementChild.cloneNode(true)
+        node.querySelector('div:nth-child(2)').textContent = text
+        chatList.appendChild(node)
+        chatList.scrollTop = chatList.scrollHeight
+      }
+
+      function appendAiContainer() {
+        const node = tplAi.content.firstElementChild.cloneNode(true)
+        chatList.appendChild(node)
+        chatList.scrollTop = chatList.scrollHeight
+        return node.querySelector('div:nth-child(2)')
+      }
+
+      function appendStepLine(jsonLine) {
+        const line = document.createElement('div')
+        line.textContent = jsonLine
+        line.className = 'px-2 py-1 bg-white rounded border border-slate-200'
+        stepsBox.appendChild(line)
+        stepsBox.scrollTop = stepsBox.scrollHeight
+      }
+
+      function clearUI() {
+        chatList.innerHTML = ''
+        stepsBox.innerHTML = ''
+        clarifyBar.classList.add('hidden')
+        cachedReactSteps = []
+        needsUserInput = false
+        setState('空闲')
+      }
+
+      async function streamChat(messages, options = {}) {
+        const url = (baseUrl.value || '').replace(/\/$/, '') + '/api/chat/stream'
+
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages,
+            reactVerbose: true,
+            reactInitialSteps: options.reactInitialSteps || undefined,
+          })
+        })
+
+        const aiBox = appendAiContainer()
+        const decoder = new TextDecoder()
+        const reader = res.body?.getReader()
+        if (!res.ok || !reader) {
+          aiBox.textContent = `[错误] HTTP ${res.status}`
+          setState('失败', 'bg-rose-50 text-rose-700')
+          return { hasFinal: false }
+        }
+
+        let hasFinal = false
+        needsUserInput = false
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          const chunk = decoder.decode(value)
+          const lines = chunk.split('\n').filter(Boolean)
+          for (const line of lines) {
+            // 1) 尝试 JSON 步骤
+            try {
+              const step = JSON.parse(line)
+              cachedReactSteps.push(step)
+              appendStepLine(line)
+              if (step.action === 'final_answer' && typeof step.answer === 'string') {
+                hasFinal = true
+              } else if (step.action === 'user_input') {
+                needsUserInput = true
+              }
+              continue
+            } catch (_) {}
+
+            // 2) 增强后的 Markdown 文本（拼接显示）
+            aiBox.textContent += line
+            chatList.scrollTop = chatList.scrollHeight
+          }
+        }
+
+        return { hasFinal }
+      }
+
+      sendBtn.addEventListener('click', async () => {
+        const text = (userInput.value || '').trim()
+        if (!text) return
+        setState('执行中')
+        appendUser(text)
+        const { hasFinal } = await streamChat([
+          { type: 'human', content: text }
+        ])
+        if (!hasFinal && needsUserInput) {
+          clarifyBar.classList.remove('hidden')
+          setState('等待澄清', 'bg-amber-50 text-amber-800')
+        } else {
+          setState('完成', 'bg-emerald-50 text-emerald-700')
+        }
+        userInput.value = ''
+      })
+
+      resumeBtn.addEventListener('click', async () => {
+        const clarification = (clarifyInput.value || '').trim()
+        if (!clarification) return
+        setState('恢复中', 'bg-amber-50 text-amber-800')
+        appendUser(`澄清：${clarification}`)
+
+        // 写入到最后一个 user_input 的 observation
+        for (let i = cachedReactSteps.length - 1; i >= 0; i--) {
+          const step = cachedReactSteps[i]
+          if (step && step.action === 'user_input') { step.observation = clarification; break }
+        }
+
+        const { hasFinal } = await streamChat([
+          { type: 'human', content: `澄清补充：${clarification}` }
+        ], { reactInitialSteps: cachedReactSteps })
+
+        if (!hasFinal && needsUserInput) {
+          clarifyBar.classList.remove('hidden')
+          setState('等待澄清', 'bg-amber-50 text-amber-800')
+        } else {
+          clarifyBar.classList.add('hidden')
+          setState('完成', 'bg-emerald-50 text-emerald-700')
+        }
+        clarifyInput.value = ''
+      })
+
+      clearBtn.addEventListener('click', clearUI)
+
+      presets.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const t = btn.getAttribute('data-preset')
+          if (t === 'hello') userInput.value = '你好，请用三句话介绍你自己'
+          if (t === 'tool') userInput.value = '获取当前系统信息与北京天气，并整理成要点列表'
+          if (t === 'clarify') userInput.value = '帮我查天气，但如果我没说城市就问我'
+        })
+      })
+    </script>
+  </body>
+  </html>
+
+
