@@ -35,7 +35,8 @@
         "dotenv": "^16.6.1",
         "express": "^4.21.2",
         "get-port": "^7.1.0",
-        "langchain": "^0.3.31"
+        "langchain": "^0.3.31",
+        "zod": "^3.25.7"
     },
     "devDependencies": {
         "@antfu/eslint-config": "^5.2.1",

@@ -2,7 +2,6 @@ import type { Express } from 'express'
 import process from 'node:process'
 import cors from 'cors'
 import express from 'express'
-import { standaloneTestServer } from '../__test__/mcp-server.test.js'
 import { initLeaderA2A, leader } from './A2A/index.js'
 import { config } from './config/index.js'
 import { globals } from './globals.js'
@@ -38,8 +37,7 @@ app.use(handleError);
     try {
     // 构建全局就绪 Promise（serverless 冷启动集中初始化）
         globals.agentManagerReady = (async () => {
-            const externalMCPServers = await standaloneTestServer()
-            const agentManager = await initLeaderA2A([externalMCPServers])
+            const agentManager = await initLeaderA2A([])
             globals.agentManager = agentManager
             logger.info(`AgentManager 已创建并注册 Leader: ${leader.name}`)
         })()

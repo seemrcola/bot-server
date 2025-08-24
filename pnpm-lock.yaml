@@ -38,6 +38,9 @@ importers:
       langchain:
         specifier: ^0.3.31
         version: 0.3.31(@langchain/core@0.3.72(openai@5.13.1(ws@8.18.3)(zod@3.25.76)))(@langchain/deepseek@0.1.0(@langchain/core@0.3.72(openai@5.13.1(ws@8.18.3)(zod@3.25.76)))(ws@8.18.3))(axios@1.11.0)(openai@5.13.1(ws@8.18.3)(zod@3.25.76))(ws@8.18.3)
+      zod:
+        specifier: ^3.25.7
+        version: 3.25.76
     devDependencies:
       '@antfu/eslint-config':
         specifier: ^5.2.1

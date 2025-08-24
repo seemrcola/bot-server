@@ -32,6 +32,7 @@ flowchart TB
 
   %% Bootstrap
   subgraph BOOT["A2A Bootstrap"]
+    direction TB
     T["initLeaderA2A (globals.agentManagerReady)"] --> U["Start Leader MCP"]
     U --> V["Create LLM"]
     V --> W["Register Leader"]

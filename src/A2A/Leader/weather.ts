@@ -1,4 +1,5 @@
 import type { MCPServerDescription } from '../types.js'
+import { z } from 'zod'
 /**
  * 这是一个用于测试的、模拟的外部 MCP 服务器。
  * 它独立运行，并提供一个独特的工具，以验证 ClientManager 的功能。
@@ -25,21 +26,13 @@ export async function startWeatherMCP(
     // 注册这个工具
     server.mcp.tool(
         'getWeather',
-        '获取当前的天气信息。',
         {
-            type: 'object',
-            properties: {
-                city: {
-                    type: 'string',
-                    description: '城市名称',
-                },
-            },
-            required: ['city'],
+            city: z.string().describe('城市名称'),
         },
-        async (input) => {
-            const city = input['city']
+        { title: '获取当前的天气信息。' },
+        async ({ city }) => {
             const weather = '晴天'
-            logger.info(`外部工具 getWeather 被调用，返回天气: ${weather}`)
+            logger.info(`外部工具 getWeather 被调用，city=${city}，返回天气: ${weather}`)
             return {
                 content: [{
                     type: 'text',
