@@ -14,21 +14,23 @@
   </head>
   <body class="min-h-screen bg-slate-50">
     <div class="max-w-6xl mx-auto p-6">
-      <header class="flex items-center justify-between mb-6">
+      <header class="flex items-center justify-between mb-4">
         <div class="flex items-center gap-3">
           <div class="h-9 w-9 rounded-full bg-white ring-1 ring-slate-300 text-slate-900 grid place-items-center text-sm font-semibold">AI</div>
           <h1 class="text-lg font-medium text-slate-900 tracking-tight">Bot Server 对话测试</h1>
           <span id="statePill" class="ml-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">空闲</span>
         </div>
-        <div class="flex items-center gap-3">
-          <input id="baseUrl" class="px-3 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 text-sm w-[320px] focus:outline-none focus:ring-2 focus:ring-slate-200" value="http://localhost:3000" />
-          <button id="clearBtn" class="px-3 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100">清空</button>
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2">
+            <label class="text-xs text-slate-500">Base URL</label>
+            <input id="baseUrl" class="px-3 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 text-sm w-[280px] focus:outline-none focus:ring-2 focus:ring-slate-200" value="http://localhost:3000" />
+          </div>
         </div>
       </header>
 
-      <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <main class="grid grid-cols-12 gap-6">
         <!-- Chat Column -->
-        <section class="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <section class="col-span-12 lg:col-span-8 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
             <div>
               <div class="text-sm font-medium text-slate-900 tracking-tight">对话</div>
@@ -37,11 +39,10 @@
             <div class="flex items-center gap-2">
               <button data-preset="hello" class="preset-btn px-2.5 py-1.5 text-xs rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100">普通对话</button>
               <button data-preset="tool" class="preset-btn px-2.5 py-1.5 text-xs rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100">工具调用</button>
-              
             </div>
           </div>
 
-          <div id="chatList" class="h-[60vh] overflow-y-auto p-4 space-y-4 scrollbar-thin bg-white">
+          <div id="chatList" class="h-[50vh] overflow-y-auto p-4 space-y-4 scrollbar-thin bg-white">
             <!-- messages will appear here -->
           </div>
 
@@ -57,12 +58,22 @@
         </section>
 
         <!-- ReAct Steps Column -->
-        <aside class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div class="px-4 py-3 border-b border-slate-100 bg-slate-50/60">
-            <div class="text-sm font-medium text-slate-900 tracking-tight">ReAct 步骤</div>
-            <div class="text-xs text-slate-500">reactVerbose=true 时返回 JSON 行</div>
+        <aside class="col-span-12 lg:col-span-4 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="px-4 pt-3 border-b border-slate-100 bg-slate-50/60">
+            <div class="flex items-center">
+              <button id="tabSteps" class="px-3 py-2 text-xs rounded-t-md border border-b-0 border-slate-200 bg-white text-slate-900">ReAct 步骤</button>
+              <button id="tabMeta" class="ml-2 px-3 py-2 text-xs rounded-t-md border border-slate-200 bg-transparent text-slate-600">Agents / Tools</button>
+              <div class="flex-1"></div>
+            </div>
           </div>
-          <div id="stepsBox" class="h-[60vh] overflow-y-auto overflow-x-hidden p-4 space-y-2 text-xs font-mono text-slate-800 bg-white scrollbar-thin break-words"></div>
+          <div id="panelSteps" class="h-[60vh] overflow-y-auto overflow-x-hidden p-4 space-y-2 text-xs font-mono text-slate-800 bg-white scrollbar-thin break-words"></div>
+          <div id="panelMeta" class="hidden h-[60vh] overflow-y-auto overflow-x-hidden p-4 space-y-2 text-xs font-mono text-slate-800 bg-white scrollbar-thin break-words">
+            <div class="mb-2 flex items-center gap-2">
+              <button id="btnListAgents" class="px-2.5 py-1.5 text-xs rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100">查看 Agents</button>
+              <button id="btnListTools" class="px-2.5 py-1.5 text-xs rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100">查看 Tools</button>
+            </div>
+            <div id="metaContent" class="space-y-2"></div>
+          </div>
         </aside>
       </main>
     </div>
@@ -84,17 +95,24 @@
       const $ = (id) => document.getElementById(id)
       const baseUrl = $('baseUrl')
       const chatList = $('chatList')
-      const stepsBox = $('stepsBox')
+      const panelSteps = $('panelSteps')
+      const panelMeta = $('panelMeta')
       const userInput = $('userInput')
       const sendBtn = $('sendBtn')
       
-      const clearBtn = $('clearBtn')
       const statePill = $('statePill')
+      
+
+      const tabSteps = $('tabSteps')
+      const tabMeta = $('tabMeta')
 
       const tplUser = $('tpl-user')
       const tplAi = $('tpl-ai')
 
       const presets = document.querySelectorAll('.preset-btn')
+      const btnListAgents = document.getElementById('btnListAgents')
+      const btnListTools = document.getElementById('btnListTools')
+      const metaBox = document.getElementById('metaContent')
 
       let cachedReactSteps = []
 
@@ -122,13 +140,28 @@
         const line = document.createElement('div')
         line.textContent = jsonLine
         line.className = 'px-2 py-1 bg-white rounded border border-slate-200 whitespace-pre-wrap break-words'
-        stepsBox.appendChild(line)
-        stepsBox.scrollTop = stepsBox.scrollHeight
+        panelSteps.appendChild(line)
+        panelSteps.scrollTop = panelSteps.scrollHeight
+      }
+
+      function renderMeta(title, data) {
+        const box = document.createElement('div')
+        box.className = 'space-y-1'
+        const t = document.createElement('div')
+        t.className = 'text-xs font-semibold text-slate-700'
+        t.textContent = title
+        const pre = document.createElement('pre')
+        pre.className = 'text-[11px] whitespace-pre-wrap break-words bg-white border border-slate-200 rounded p-2'
+        pre.textContent = JSON.stringify(data, null, 2)
+        box.appendChild(t)
+        box.appendChild(pre)
+        metaBox.innerHTML = ''
+        metaBox.appendChild(box)
       }
 
       function clearUI() {
         chatList.innerHTML = ''
-        stepsBox.innerHTML = ''
+        panelSteps.innerHTML = ''
         cachedReactSteps = []
         setState('空闲')
       }
@@ -193,7 +226,7 @@
         userInput.value = ''
       })
 
-      clearBtn.addEventListener('click', clearUI)
+      
 
       presets.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -201,6 +234,60 @@
           if (t === 'hello') userInput.value = '你好，请用三句话介绍你自己'
           if (t === 'tool') userInput.value = '获取当前系统信息与北京天气，并整理成要点列表'
         })
+      })
+
+      btnListAgents.addEventListener('click', async () => {
+        const url = (baseUrl.value || '').replace(/\/$/, '') + '/api/list/agents'
+        const res = await fetch(url)
+        const json = await res.json().catch(() => ({}))
+        renderMeta('Agents', json)
+        tabMeta.click()
+      })
+
+      btnListTools.addEventListener('click', async () => {
+        const url = (baseUrl.value || '').replace(/\/$/, '') + '/api/list/tools'
+        const res = await fetch(url)
+        const json = await res.json().catch(() => ({}))
+        renderMeta('Tools', json)
+        tabMeta.click()
+      })
+
+      // Tabs
+      tabSteps.addEventListener('click', () => {
+        tabSteps.className = 'px-3 py-2 text-xs rounded-t-md border border-b-0 border-slate-200 bg-white text-slate-900'
+        tabMeta.className = 'ml-2 px-3 py-2 text-xs rounded-t-md border border-slate-200 bg-transparent text-slate-600'
+        panelSteps.classList.remove('hidden')
+        panelMeta.classList.add('hidden')
+      })
+      tabMeta.addEventListener('click', () => {
+        tabMeta.className = 'ml-2 px-3 py-2 text-xs rounded-t-md border border-b-0 border-slate-200 bg-white text-slate-900'
+        tabSteps.className = 'px-3 py-2 text-xs rounded-t-md border border-slate-200 bg-transparent text-slate-600'
+        panelMeta.classList.remove('hidden')
+        panelSteps.classList.add('hidden')
+      })
+
+
+      // 配置持久化
+      ;(() => {
+        try {
+          const saved = localStorage.getItem('chatbase')
+          if (saved) {
+            const obj = JSON.parse(saved)
+            if (obj.baseUrl) baseUrl.value = obj.baseUrl
+          }
+        } catch {}
+      })()
+      function persist() {
+        try { localStorage.setItem('chatbase', JSON.stringify({ baseUrl: baseUrl.value })) } catch {}
+      }
+      baseUrl.addEventListener('change', persist)
+
+      // 快捷发送：Cmd/Ctrl+Enter
+      userInput.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+          e.preventDefault()
+          sendBtn.click()
+        }
       })
     </script>
   </body>

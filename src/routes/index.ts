@@ -2,6 +2,7 @@ import type { Request, Response } from 'express'
 import { Router } from 'express'
 import { chatRouter } from './chat.route.js'
 import { healthRouter } from './health.route.js'
+import { listRouter } from './list.route.js'
 
 /**
  * 创建并配置主应用路由。
@@ -23,6 +24,7 @@ function createMainRouter(): Router {
 
     // 挂载 API 路由
     router.use('/api/chat', chatRouter)
+    router.use('/api/list', listRouter)
     router.use('/api/health', healthRouter)
 
     return router
