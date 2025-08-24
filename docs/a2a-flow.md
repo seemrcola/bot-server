@@ -1,7 +1,7 @@
 ## A2A 路由与启动流程
 
 ```mermaid
-flowchart TD
+flowchart TB
   %% Entry
   A["HTTP /api/chat/stream"] --> B["ChatController"]
   B --> C["ChatService.runChainStream"]
