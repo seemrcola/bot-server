@@ -76,9 +76,28 @@ export class AgentChain {
             if (reactStep) {
                 yield* reactStep.execute(context) as AsyncIterable<string>
             }
-            if (enhanceStep) {
+            // 仅在已得到最终答案时才进行增强回复
+            if (enhanceStep && hasFinalAnswer(context.reactResults)) {
                 yield* enhanceStep.execute(context) as AsyncIterable<string>
             }
         }
     }
+}
+
+function hasFinalAnswer(reactResults?: string[]): boolean {
+    if (!Array.isArray(reactResults) || reactResults.length === 0)
+        return false
+    for (let i = reactResults.length - 1; i >= 0; i--) {
+        const s = reactResults[i]
+        try {
+            const step = s ? JSON.parse(s) : null
+            if (step && step.action === 'final_answer' && typeof step.answer === 'string') {
+                return true
+            }
+        }
+        catch {
+            continue
+        }
+    }
+    return false
 }

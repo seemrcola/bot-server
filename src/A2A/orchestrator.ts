@@ -11,6 +11,7 @@ export interface OrchestratorOptions {
     reactVerbose?: boolean | undefined // 是否输出详细ReAct步骤
     temperature?: number | undefined // 采样温度
     agentName?: string | undefined // 显式指定要执行的 Agent；通常不指定，由系统进行 LLM 路由
+    reactInitialSteps?: any[] | undefined // ReAct 恢复用的历史步骤
 }
 
 /**
@@ -66,6 +67,9 @@ export async function runWithLeader(
     }
     if (typeof options.temperature === 'number') {
         chainOptions.temperature = options.temperature
+    }
+    if (Array.isArray(options.reactInitialSteps)) {
+        chainOptions.reactInitialSteps = options.reactInitialSteps
     }
 
     // 执行链式流程

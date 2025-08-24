@@ -56,6 +56,7 @@ Content-Type: application/json
 | `messages` | `Message[]` | ✅ | - | LangChain风格消息数组 |
 | `reactVerbose` | `boolean` | ❌ | `false` | 是否输出详细ReAct步骤 |
 | `agentName` | `string` | ❌ | - | 显式指定要执行的 Agent；通常不指定，由系统进行 LLM 路由 |
+| `reactInitialSteps` | `object[]` | ❌ | - | 恢复 ReAct 推理用的历史步骤（见“人机协同”） |
 
 #### 消息格式
 
@@ -94,6 +95,28 @@ interface Message {
 }
 ```
 
+**人机协同（恢复执行）：**
+```json
+{
+    "messages": [
+        { "type": "human", "content": "上次澄清问题的补充答案：北京" }
+    ],
+    "reactVerbose": true,
+    "reactInitialSteps": [
+        {
+            "thought": "需要确认城市名",
+            "action": "user_input",
+            "observation": "北京" // 服务端可在恢复前写入用户补充
+        },
+        {
+            "thought": "准备查询天气",
+            "action": "tool_call",
+            "action_input": { "tool_name": "getWeather", "parameters": { "city": "北京" } }
+        }
+    ]
+}
+```
+
 #### 响应格式
 
 **reactVerbose: false (默认)**
@@ -114,6 +137,8 @@ interface Message {
 {"thought":"系统信息获取完成，现在获取天气信息","action":"tool_call","action_input":{"tool_name":"getWeather","parameters":{"city":"北京"}},"observation":"系统信息：Node.js v18.0.0, 内存使用: 512MB"}
 {"thought":"所有信息已收集完成，整理回答","action":"final_answer","answer":"根据获取的信息：\n\n**系统信息：**\n- Node.js v18.0.0\n- 内存使用: 512MB\n\n**天气信息：**\n- 北京：晴天，25°C\n\n所有信息已为您整理完毕！","observation":"天气信息：北京晴天，25°C"}
 ```
+
+> 当某一步返回 `{"action":"user_input"}` 时，客户端应保存本轮的 ReAct 步骤（react_steps），向用户展示澄清问题；用户补充后，将补充内容写入上一次 `user_input` 步骤的 `observation`，并把整包步骤作为 `reactInitialSteps` 传入新一轮请求，即可恢复推理。
 
 #### 状态码
 
@@ -140,7 +165,7 @@ interface Message {
     ↓
 分支判断
     ├─ 直接回答 → DirectLLMStep → 流式输出
-    └─ 工具调用 → ReActExecutionStep → ResponseEnhancementStep → 流式输出
+    └─ 工具调用 → ReActExecutionStep → [若 final_answer 存在 → ResponseEnhancementStep] → 流式输出
 ```
 
 ### ReAct JSON 格式
@@ -159,6 +184,24 @@ interface Message {
     "answer": "最终回答（action=final_answer时）"
 }
 ```
+
+### 人机协同（user_input 挂起与恢复）
+
+1) 当 ReAct 返回 `action=user_input` 时：
+
+ - 本轮流式输出停止；客户端可选接收到该步 JSON
+ - 客户端需要缓存“本轮所有 ReAct 步骤”为 `react_steps`
+ - 展示澄清问题，等待用户补充
+
+2) 用户补充后：
+
+ - 将 `react_steps` 中最后一个 `user_input` 步骤的 `observation` 设置为用户补充文本
+ - 以 `reactInitialSteps` 传回 `POST /api/chat/stream`，并把用户补充也作为最后一条 `messages`
+ - 服务端会把 `reactInitialSteps` 透传给执行器 `initialSteps`，从该状态继续 ReAct 推理，直到出现 `final_answer`
+
+3) 增强回复 gating：
+
+ - 只有在 `react_steps` 中出现 `action=final_answer` 且含 `answer` 时，才进行 `ResponseEnhancementStep`
 
 ## 🛠️ 执行策略
 
@@ -251,6 +294,90 @@ try {
 } catch (error) {
   console.error('请求失败:', error);
 }
+```
+
+**人机协同（前端恢复执行范例）：**
+```javascript
+// 一个简单的“挂起-恢复”控制流示例
+let cachedReactSteps = []
+
+async function callChat(messages, options = {}) {
+    const response = await fetch('/api/chat/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            messages,
+            reactVerbose: true, // 方便拿到每步 JSON
+            reactInitialSteps: options.reactInitialSteps || undefined,
+        })
+    })
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let finalAnswer = ''
+    let lastChunk = ''
+
+    while (true) {
+        const { done, value } = await reader.read()
+        if (done)
+            break
+        const chunk = decoder.decode(value)
+        lastChunk = chunk
+
+        // 逐行拆分，尝试累积 ReAct 步骤
+        const lines = chunk.split('\n').filter(Boolean)
+        for (const line of lines) {
+            try {
+                const step = JSON.parse(line)
+                cachedReactSteps.push(step)
+                if (step.action === 'final_answer' && typeof step.answer === 'string') {
+                    finalAnswer = step.answer
+                }
+            }
+            catch (_) {
+                // 非 JSON（可能是增强后的 Markdown），直接展示
+                finalAnswer += line
+            }
+        }
+    }
+
+    return { finalAnswer, lastChunk }
+}
+
+// 初次调用
+async function main() {
+    const { finalAnswer } = await callChat([
+        { type: 'human', content: '查询北京天气，若缺城市就问我' }
+    ])
+
+    // 如果没有最终答案，说明可能挂起等待澄清
+    if (!finalAnswer) {
+    // 展示澄清 UI，等待用户补充
+        const userClarification = prompt('请输入城市名')
+
+        // 将补充内容写入上一次 user_input 步骤的 observation
+        for (let i = cachedReactSteps.length - 1; i >= 0; i--) {
+            if (cachedReactSteps[i].action === 'user_input') {
+                cachedReactSteps[i].observation = userClarification
+                break
+            }
+        }
+
+        // 以 reactInitialSteps 恢复执行，同时把自然语言补充也写进 messages
+        const { finalAnswer: resumed } = await callChat([
+            { type: 'human', content: `城市补充：${userClarification}` }
+        ], {
+            reactInitialSteps: cachedReactSteps
+        })
+
+        console.log('最终：', resumed)
+    }
+    else {
+        console.log('最终：', finalAnswer)
+    }
+}
+
+main()
 ```
 
 **超时控制：**

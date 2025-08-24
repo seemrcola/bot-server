@@ -25,6 +25,10 @@ export interface ReActStep {
 export interface ReActExecutorOptions {
     maxSteps?: number
     temperature?: number
+    /**
+     * 用于“恢复运行”的历史步骤种子
+     */
+    initialSteps?: ReActStep[]
 }
 
 export class PromptReActExecutor {
@@ -60,7 +64,7 @@ export class PromptReActExecutor {
             inputSchema: t.inputSchema ?? {},
         }))
 
-        const steps: ReActStep[] = []
+        const steps: ReActStep[] = Array.isArray(options.initialSteps) ? [...options.initialSteps] : []
 
         for (let i = 0; i < maxSteps; i++) {
             const promptMessages: BaseMessage[] = [

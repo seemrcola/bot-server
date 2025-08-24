@@ -36,6 +36,7 @@ class ChatService {
             agentName?: string
             reactVerbose?: boolean
             temperature?: number
+            reactInitialSteps?: any[]
         },
     ): Promise<AsyncIterable<string>> {
         await ensureBootstrap()
@@ -50,6 +51,7 @@ class ChatService {
             reactVerbose: options.reactVerbose,
             temperature: options.temperature,
             agentName: options.agentName,
+            reactInitialSteps: options.reactInitialSteps,
         })
     }
 }

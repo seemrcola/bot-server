@@ -23,7 +23,12 @@ export class ReActExecutionStep implements ChainStep {
         if (typeof temperature === 'number') {
             runOptions.temperature = temperature
         }
-        for await (const step of executor.run(context.messages, runOptions)) {
+        // 透传恢复用的初始步骤（若存在）
+        runOptions.initialSteps = context.options.reactInitialSteps
+        // 创建执行器
+        const exec = executor.run(context.messages, runOptions)
+        // 消费执行器
+        for await (const step of exec) {
             reactResults.push(step)
             if (context.options.reactVerbose) {
                 yield `${step}\n`
