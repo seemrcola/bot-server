@@ -87,7 +87,7 @@ interface Message {
     "messages": [
         {
             "type": "human",
-            "content": "获取当前天气和系统信息"
+            "content": "获取系统信息并比较 3 和 5 的大小"
         }
     ],
     "reactVerbose": true
@@ -110,9 +110,9 @@ interface Message {
 
 **reactVerbose: true**
 ```
-{"thought":"分析用户需求，需要获取天气和系统信息","action":"tool_call","action_input":{"tool_name":"getSystemInfo","parameters":{}}}
-{"thought":"系统信息获取完成，现在获取天气信息","action":"tool_call","action_input":{"tool_name":"getWeather","parameters":{"city":"北京"}},"observation":"系统信息：Node.js v18.0.0, 内存使用: 512MB"}
-{"thought":"所有信息已收集完成，整理回答","action":"final_answer","answer":"根据获取的信息：\n\n**系统信息：**\n- Node.js v18.0.0\n- 内存使用: 512MB\n\n**天气信息：**\n- 北京：晴天，25°C\n\n所有信息已为您整理完毕！","observation":"天气信息：北京晴天，25°C"}
+{"thought":"先获取系统信息","action":"tool_call","action_input":{"tool_name":"getSystemInfo","parameters":{}}}
+{"thought":"系统信息获取完成，现在比较两个数","action":"tool_call","action_input":{"tool_name":"compare","parameters":{"num1":3,"num2":5}},"observation":"两个数比较的结果是 num1 小于 num2"}
+{"thought":"整理回答","action":"final_answer","answer":"当前 Node.js 版本 …；比较结果：3 小于 5。"}
 ```
 
 #### 状态码
@@ -169,10 +169,11 @@ interface Message {
 
 ### 内置工具
 
-系统自动启动并注册以下MCP工具服务：
+Leader 启动时会自动启动并注册以下 MCP 工具服务：
 
-- **node-external-server**: 提供系统信息查询
-- **weather-external-server**: 提供天气信息查询
+- `system-mcp-server`: `getSystemInfo()` 获取当前 Node.js 版本等
+- `compare-mcp-server`: `compare(num1:number, num2:number)` 比较两个数大小
+- `two-sum-mcp-server`: `twoSum(num1:number, num2:number)` 两数求和
 
 ### 工具返回格式
 

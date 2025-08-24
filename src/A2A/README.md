@@ -13,8 +13,9 @@ src/A2A/
 ├── router.ts             # LLM 精准路由：用 LLM 在候选 Agent 中做判断
 ├── Leader/               # Leader 的 MCP 工具编排
 │   ├── index.ts
-│   ├── system.ts
-│   └── weather.ts
+│   ├── system.ts         # 系统信息工具
+│   ├── compare.ts        # 比较两个数
+│   └── twoSum.ts         # 两数求和
 └── Dashboard/            # Dashboard 子 Agent 集合（按域划分）
     ├── index.ts          # 集中导出需要注册的子 Agent（推荐方式）
     └── Antfe/

@@ -79,8 +79,8 @@ import { Agent, AgentChain } from './index.js'
 
 // 配置外部MCP服务
 const servers: ExternalServerConfig[] = [
-    { name: 'weather-server', version: '1.0.0', url: 'http://localhost:3101/mcp' },
-    { name: 'system-server', version: '1.0.0', url: 'http://localhost:3102/mcp' },
+    { name: 'system-mcp-server', version: '1.0.0', url: 'http://localhost:3101/mcp' },
+    { name: 'compare-mcp-server', version: '1.0.0', url: 'http://localhost:3102/mcp' },
 ]
 
 // 创建Agent
@@ -89,7 +89,7 @@ await agent.ready
 
 // 执行链式处理
 const chain = new AgentChain(agent)
-const messages = [new HumanMessage('获取当前天气和系统信息')]
+const messages = [new HumanMessage('获取系统信息并比较 3 和 5 的大小')]
 
 // 仅保留 Prompt 策略
 const stream = await chain.runChain(messages, {
@@ -209,17 +209,12 @@ const server = new MCPServer({
 })
 
 server.mcp.tool(
-    'getWeather',
-    '获取当前天气信息',
-    {
-        type: 'object',
-        properties: {
-            city: { type: 'string', description: '城市名称' }
-        }
-    },
-    async args => ({
-        content: [{ type: 'text', text: `北京天气：晴天，25°C` }],
-        structuredContent: { weather: '晴天', temperature: 25 }
+    'compare',
+    { num1: z.number(), num2: z.number() },
+    { title: '比较两个数' },
+    async ({ num1, num2 }) => ({
+        content: [{ type: 'text', text: `比较结果：${num1 > num2 ? 'num1 大于 num2' : 'num1 小于等于 num2'}` }],
+        structuredContent: { result: num1 > num2 ? 'gt' : 'le' },
     })
 )
 

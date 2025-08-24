@@ -68,7 +68,7 @@ pnpm start
 ```
 
 - **默认API地址**: `http://localhost:3000`
-- **外部MCP服务**: 自动启动并注册（如 `node-external-server`、`weather-external-server`）
+- **外部MCP服务**: 自动启动并注册（如 `system-mcp-server`、`compare-mcp-server`、`two-sum-mcp-server`）
 - **A2A 路由**: 支持显式指定、LLM 精准路由与回退，详见 `docs/a2a-flow.md`
 
 ## ☁️ Serverless 部署与初始化
@@ -141,7 +141,7 @@ curl -N -X POST http://localhost:3000/api/chat/stream \
 curl -N -X POST http://localhost:3000/api/chat/stream \
   -H 'Content-Type: application/json' \
   -d '{
-    "messages":[{"type":"human","content":"获取系统信息和天气信息"}],
+    "messages":[{"type":"human","content":"获取系统信息并比较 3 和 5 的大小"}],
     "reactVerbose": true
   }'
 ```
