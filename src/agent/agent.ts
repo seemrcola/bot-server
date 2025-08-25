@@ -84,6 +84,8 @@ export class Agent {
             inputSchema: t.inputSchema ?? {},
         }))
 
+        logger.info('工具列表目录', toolCatalog)
+
         return toolCatalog
     }
 

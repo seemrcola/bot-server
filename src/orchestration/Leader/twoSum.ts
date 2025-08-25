@@ -24,12 +24,18 @@ export async function startTwoSumMCP(
     const server = new MCPServer({ name, version })
 
     // 注册这个工具
-    server.mcp.tool(
+    server.mcp.registerTool(
         'twoSum',
-        '计算两个数相加的结果。',
         {
-            num1: z.number().describe('第一个数'),
-            num2: z.number().describe('第二个数'),
+            title: '计算两个数相加的结果。',
+            description: '计算两个数相加的结果。',
+            inputSchema: {
+                num1: z.number().describe('第一个数'),
+                num2: z.number().describe('第二个数'),
+            },
+            outputSchema: {
+                result: z.number().describe('相加的结果'),
+            },
         },
         async ({ num1, num2 }) => {
             const result = num1 + num2

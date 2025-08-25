@@ -24,12 +24,18 @@ export async function startCompareMCP(
     const server = new MCPServer({ name, version })
 
     // 注册这个工具
-    server.mcp.tool(
+    server.mcp.registerTool(
         'compare',
-        '比较两个数的大小。',
         {
-            num1: z.number().describe('第一个数'),
-            num2: z.number().describe('第二个数'),
+            title: '比较两个数的大小。',
+            description: '比较两个数的大小。',
+            inputSchema: {
+                num1: z.number().describe('第一个数'),
+                num2: z.number().describe('第二个数'),
+            },
+            outputSchema: {
+                result: z.string().describe('比较结果'),
+            },
         },
         async ({ num1, num2 }) => {
             const bool = num1 > num2

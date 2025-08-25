@@ -1,4 +1,6 @@
 import type { MCPServerDescription } from '../../types.js'
+import { z } from 'zod'
+
 /**
  * 这是一个用于测试的、模拟的外部 MCP 服务器。
  * 它独立运行，并提供一个独特的工具，以验证 ClientManager 的功能。
@@ -23,17 +25,22 @@ export async function startAntfeMCP(
     const server = new MCPServer({ name, version })
 
     // 注册这个工具
-    server.mcp.tool(
+    server.mcp.registerTool(
         'getAntfeMember',
-        '获取Antfe组织的成员信息。',
-        {}, // 无输入参数，传入空对象
+        {
+            title: '获取Antfe组织的成员信息。',
+            description: '获取Antfe组织的成员信息。',
+            outputSchema: {
+                member: z.array(z.string()).describe('成员名称'),
+            },
+        },
         async () => {
-            const member = '显林叔'
+            const member = ['显林叔', 'Mr.', 'C']
             logger.info(`外部工具 getAntfeMember 被调用，返回Antfe组织成员信息: ${member}`)
             return {
                 content: [{
                     type: 'text',
-                    text: `当前Antfe组织成员是 ${member}`,
+                    text: `当前Antfe组织成员是 ${member.join(', ')}`,
                 }],
                 structuredContent: {
                     member,

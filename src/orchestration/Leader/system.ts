@@ -23,10 +23,12 @@ export async function startSystemMCP(
     const server = new MCPServer({ name, version })
 
     // 注册这个工具
-    server.mcp.tool(
+    server.mcp.registerTool(
         'getSystemInfo',
-        '获取当前服务器的系统信息，例如 Node.js 版本。',
-        {}, // 无输入参数，传入空对象
+        {
+            title: '获取服务器信息',
+            description: '获取当前服务器的系统信息，例如 Node.js 版本。',
+        },
         async () => {
             const nodeVersion = process.version
             logger.info(`外部工具 getSystemInfo 被调用，返回 Node.js 版本: ${nodeVersion}`)
