@@ -72,6 +72,21 @@ export class Agent {
         return this.externalClientManager.getAllTools()
     }
 
+    /**
+     * 获取工具列表目录
+     */
+    public async listToolCatalog(): Promise<ExternalTool[]> {
+        const availableTools = await this.clientManager.getAllTools()
+
+        const toolCatalog = availableTools.map(t => ({
+            name: t.name,
+            description: t.annotations?.title ?? '',
+            inputSchema: t.inputSchema ?? {},
+        }))
+
+        return toolCatalog
+    }
+
     private async initialize(externalServers: ExternalServerConfig[]) {
         try {
             // 连接外部服务 连接同时创建对应的 client 与 外部服务 一一对应

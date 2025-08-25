@@ -1,6 +1,6 @@
 import type { ChainContext, ChainStep } from '../types.js'
-import { PromptReActExecutor } from '../../executors/promptBaseToolUse.ReAct.js'
 import { createLogger } from '../../utils/logger.js'
+import { PromptReActExecutor } from '../executors/index.js'
 
 const logger = createLogger('ReActExecutionStep')
 

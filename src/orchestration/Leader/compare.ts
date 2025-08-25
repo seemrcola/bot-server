@@ -32,7 +32,8 @@ export async function startCompareMCP(
         },
         { title: '比较两个数的大小。' },
         async ({ num1, num2 }) => {
-            const result = num1 > num2 ? 'num1 大于 num2' : 'num1 小于 num2'
+            const bool = num1 > num2
+            const result = bool ? `${num1} 大于 ${num2}` : `${num1} 小于 ${num2}`
             logger.info(`外部工具 compare 被调用，num1=${num1}，num2=${num2}，返回结果: ${result}`)
             return {
                 content: [{

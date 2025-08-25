@@ -1,10 +1,10 @@
 import type { BaseLanguageModel } from '@langchain/core/language_models/base'
 import type { BaseMessage } from '@langchain/core/messages'
-import type { Agent } from '../agent.js'
-import type { ClientManager } from '../mcp/client/manager.js'
+import type { Agent } from '../../agent.js'
+import type { ClientManager } from '../../mcp/client/manager.js'
 import { HumanMessage, SystemMessage } from '@langchain/core/messages'
-import { createLogger } from '../utils/logger.js'
-import { extractDisplayableTextFromToolResult, extractText } from './utils.js'
+import { createLogger } from '../../utils/logger.js'
+import { extractDisplayableTextFromToolResult, extractJsonFromText, extractText } from './utils.js'
 
 const logger = createLogger('ReActExecutor')
 const MAX_STEPS = 8
@@ -52,14 +52,11 @@ export class PromptReActExecutor {
             return
         }
 
-        const availableTools = await this.clientManager.getAllTools()
+        // 获取工具目录
+        const toolCatalog = await this.agent.listToolCatalog()
+        // console.log('工具目录：', toolCatalog)
 
-        const toolCatalog = availableTools.map(t => ({
-            name: t.name,
-            description: t.annotations?.title ?? '',
-            inputSchema: t.inputSchema ?? {},
-        }))
-
+        // 用于存储推理/执行的步骤
         const steps: ReActStep[] = []
 
         for (let i = 0; i < maxSteps; i++) {
@@ -119,19 +116,20 @@ export class PromptReActExecutor {
             }
 
             const content = extractText(raw?.content)
-            const parsed = tryParseJson(content)
-            if (!parsed.ok) {
+            const parseResult = extractJsonFromText(content)
+
+            if (!parseResult.success) {
                 const step: ReActStep = {
                     thought: '解析模型输出失败，准备终止。',
                     action: 'final_answer',
-                    answer: `对不起，决策解析失败：${parsed.error}`,
+                    answer: `对不起，决策解析失败：${parseResult.error}`,
                 }
                 steps.push(step)
                 yield JSON.stringify(step)
                 return
             }
 
-            const step = normalizeStep(parsed.value)
+            const step = normalizeStep(parseResult.data)
             steps.push(step)
             yield JSON.stringify(step)
 
@@ -173,19 +171,6 @@ export class PromptReActExecutor {
             answer: steps[steps.length - 1]?.observation || '未能在限定步数内得到明确答案。',
         }
         yield JSON.stringify(fallback)
-    }
-}
-
-function tryParseJson(text: string): { ok: true, value: any } | { ok: false, error: string } {
-    try {
-    // 尝试提取第一个 JSON 对象
-        const start = text.indexOf('{')
-        const end = text.lastIndexOf('}')
-        const slice = start >= 0 && end >= start ? text.slice(start, end + 1) : text
-        return { ok: true, value: JSON.parse(slice) }
-    }
-    catch (e) {
-        return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
 }
 

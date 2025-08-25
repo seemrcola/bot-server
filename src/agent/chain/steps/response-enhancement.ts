@@ -1,8 +1,8 @@
 import type { BaseMessage } from '@langchain/core/messages'
 import type { ChainContext, ChainStep } from '../types.js'
 import { HumanMessage, SystemMessage } from '@langchain/core/messages'
-import { extractText } from '../../executors/utils.js'
 import { createLogger } from '../../utils/logger.js'
+import { extractText } from '../executors/index.js'
 
 const logger = createLogger('ResponseEnhancementStep')
 

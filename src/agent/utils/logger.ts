@@ -1,4 +1,6 @@
 // src/utils/logger.ts
+import process from 'node:process'
+
 export enum LogLevel {
     DEBUG = 'debug',
     INFO = 'info',

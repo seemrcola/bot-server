@@ -7,27 +7,31 @@
 ```
 Agent Module/
 ├── agent.ts              # 核心Agent类：依赖提供者
-├── chain/                # 链式处理模块（新增）
+├── chain/                # 链式处理模块
 │   ├── agent-chain.ts    # 主链式处理器
 │   ├── types.ts          # 类型定义
+│   ├── executors/        # 执行器（内聚子模块）
+│   │   ├── react-executor.ts # ReAct执行器
+│   │   └── utils.ts          # 执行器工具函数
 │   └── steps/            # 处理步骤
 │       ├── intent-analysis.ts      # 意图分析
 │       ├── direct-llm.ts           # 直接LLM回答
 │       ├── react-execution.ts      # ReAct执行
 │       └── response-enhancement.ts # 响应增强
-├── executors/            # 执行器（底层实现）
-│   ├── promptBaseToolUse.ReAct.ts  # Prompt模式ReAct
-│   └── utils.ts          # 执行器工具函数
-└── mcp/                  # MCP协议支持
-    ├── client/           # MCP客户端
-    └── server/           # MCP服务端
+├── mcp/                  # MCP协议支持
+│   ├── client/           # MCP客户端
+│   └── server/           # MCP服务端
+└── utils/                # Agent专用工具（模块自治）
+    ├── logger.ts         # 日志工具
+    └── object-utils.ts   # 对象工具
 ```
 
-> 说明：为保持 `agent` 模块的单一职责与可复用性，已移除内部的 Agent 管理器。多智能体（A2A）管理请见 `src/A2A/manager.ts`。
+> 说明：为保持 `agent` 模块的单一职责与可复用性，已移除内部的 Agent 管理器。多智能体编排管理请见 `src/orchestration/manager.ts`。
 
 ## 🚀 核心特性
 
 - **链式处理架构**：意图分析 → 执行 → 增强回复
+- **模块内聚设计**：执行器集成在链式处理模块中，提高可维护性
 - **智能意图识别**：自动判断是否需要工具调用
 - **执行策略**：统一 Prompt 模式（已移除 Function 模式）
 - **流式输出**：完整的异步流式处理
@@ -125,7 +129,29 @@ class Agent {
 **方法：**
 - `listTools(): Promise<ExternalTool[]>` - 获取可用工具列表
 
-### AgentChain 类
+### 链式处理模块导出
+
+```typescript
+// 从 chain 模块导出
+import {
+    AgentChain,
+    extractDisplayableTextFromToolResult,
+    extractText,
+    PromptReActExecutor
+} from './chain/index.js'
+
+// 或者从主模块统一导出
+import {
+    Agent,
+    AgentChain,
+    PromptReActExecutor
+} from './index.js'
+```
+
+**新增导出：**
+- `PromptReActExecutor` - ReAct执行器（现在集成在chain中）
+- `extractText` - 文本提取工具函数
+- `extractDisplayableTextFromToolResult` - 工具结果显示函数
 
 ```typescript
 class AgentChain {
@@ -180,6 +206,8 @@ interface ChainOptions {
 ## 🛠️ 执行策略
 
 仅保留 Prompt 模式：通过提示词约束输出 ReAct JSON；Function 模式已移除。
+
+**架构优化**：执行器已集成在 `chain/executors/` 目录中，提高了模块内聚性和可维护性。
 
 ## 📝 ReAct JSON 格式
 
@@ -271,6 +299,17 @@ class CustomStep implements ChainStep {
 this.steps.push(new CustomStep())
 ```
 
+### 4. 使用内置执行器
+```typescript
+import { PromptReActExecutor } from './chain/executors/index.js'
+
+// 直接使用ReAct执行器
+const executor = new PromptReActExecutor({ agent })
+for await (const step of executor.run(messages, { maxSteps: 8 })) {
+    console.log(step)
+}
+```
+
 ## 🔍 调试与监控
 
 ### 日志级别
@@ -309,6 +348,7 @@ A: 支持所有符合LangChain BaseLanguageModel接口的模型。
 
 ## 🔄 版本历史
 
+- **v2.1.0**: 执行器模块合并优化，提高模块内聚性和可维护性
 - **v2.0.0**: 引入链式处理架构，重构为模块化设计
 - **v1.0.0**: 基础ReAct执行器实现
 

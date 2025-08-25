@@ -1,6 +1,6 @@
 import type { Agent } from '../agent/agent.js'
 /**
- * Agent Manager（A2A 层）
+ * Agent Manager（Orchestration 层）
  * 负责创建、管理和提供多个 Agent 实例。
  * 注意：此处仅负责管理，不参与具体对话流程，保持与 agent 模块解耦。
  */

@@ -1,6 +1,6 @@
 import type { BaseMessage } from '@langchain/core/messages'
-import { runWithLeader } from '../../A2A/index.js'
 import { globals } from '../../globals.js' // 从全局容器导入
+import { runWithLeader } from '../../orchestration/index.js'
 import { createLogger } from '../../utils/logger.js'
 
 const logger = createLogger('ChatService')

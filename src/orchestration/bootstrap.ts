@@ -7,12 +7,12 @@ import leader from './Leader/index.js'
 import { createLLM } from './llm.js'
 import { AgentManager } from './manager.js'
 
-const logger = createLogger('A2ABootstrap')
+const logger = createLogger('OrchestrationBootstrap')
 
 const defaultSystemPrompt = `
 你是一个乐于助人的 AI 助手。回复内容请使用 Markdown 格式。`
 
-export async function initLeaderA2A(externalMCPServers: MCPServerDescription[]): Promise<AgentManager> {
+export async function initLeaderOrchestration(externalMCPServers: MCPServerDescription[]): Promise<AgentManager> {
     const systemPrompt = defaultSystemPrompt
 
     // 1) 启动 Leader 的外部 MCP 工具服务

@@ -1,9 +1,9 @@
 /**
- * A2A 模块统一出口
+ * Orchestration 模块统一出口
  */
 
 // 启动编排（Leader + 子 Agent 注册）
-export { initLeaderA2A } from './bootstrap.js'
+export { initLeaderOrchestration } from './bootstrap.js'
 
 // Dashboard 子 Agent 集合（集中导出）
 export { dashboards } from './Dashboard/index.js'

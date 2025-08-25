@@ -4,7 +4,7 @@ import { globals } from '../globals.js'
 import { createLogger } from '../utils/logger.js'
 import { selectAgentByLLM } from './router.js'
 
-const logger = createLogger('A2AOrchestrator')
+const logger = createLogger('OrchestrationRunner')
 
 export interface OrchestratorOptions {
     maxSteps?: number | undefined // 最大执行步数，默认8

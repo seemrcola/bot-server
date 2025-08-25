@@ -17,10 +17,10 @@ listRouter.get('/tools', async (_req: Request, res: Response) => {
         if (!leaderAgent)
             return res.status(500).json({ error: 'Leader 未注册' })
         const tools = await leaderAgent.clientManager.getAllTools()
-        res.json({ success: true, data: tools })
+        return res.json({ success: true, data: tools })
     }
     catch (e: any) {
-        res.status(500).json({ success: false, error: e?.message || String(e) })
+        return res.status(500).json({ success: false, error: e?.message || String(e) })
     }
 })
 

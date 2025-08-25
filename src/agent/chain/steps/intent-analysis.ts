@@ -1,8 +1,8 @@
 import type { BaseMessage } from '@langchain/core/messages'
 import type { ChainContext, ChainStep } from '../types.js'
 import { HumanMessage, SystemMessage } from '@langchain/core/messages'
-import { extractText } from '../../executors/utils.js'
 import { createLogger } from '../../utils/logger.js'
+import { extractJsonFromText, extractText } from '../executors/index.js'
 
 const logger = createLogger('IntentAnalysisStep')
 
@@ -15,11 +15,9 @@ export class IntentAnalysisStep implements ChainStep {
     async execute(context: ChainContext): Promise<void> {
         logger.info('开始意图分析')
 
-        const tools = await context.agent.listTools()
-        const toolCatalog = tools.map(t => ({
-            name: t.name,
-            description: t.description ?? '',
-        }))
+        // 获取工具目录
+        const toolCatalog = await context.agent.listToolCatalog()
+        console.log('工具目录：', toolCatalog)
 
         const intentMessages: BaseMessage[] = [
             new SystemMessage([
@@ -46,11 +44,15 @@ export class IntentAnalysisStep implements ChainStep {
         try {
             const result = await context.agent.languageModel.invoke(intentMessages)
             const text = extractText(result?.content)
-            const start = text.indexOf('{')
-            const end = text.lastIndexOf('}')
-            const slice = start >= 0 && end >= start ? text.slice(start, end + 1) : text
-            const parsed = JSON.parse(slice)
 
+            // 使用通用JSON解析工具函数
+            const parseResult = extractJsonFromText(text)
+
+            if (!parseResult.success) {
+                throw new Error(`JSON解析失败: ${parseResult.error}`)
+            }
+
+            const parsed = parseResult.data
             context.intentResult = {
                 mode: parsed?.use_tools ? 'react' : 'direct',
                 reason: parsed?.reason || '未提供原因',
