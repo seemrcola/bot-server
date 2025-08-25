@@ -26,11 +26,11 @@ export async function startTwoSumMCP(
     // 注册这个工具
     server.mcp.tool(
         'twoSum',
+        '计算两个数相加的结果。',
         {
             num1: z.number().describe('第一个数'),
             num2: z.number().describe('第二个数'),
         },
-        { title: '计算两个数相加的结果。' },
         async ({ num1, num2 }) => {
             const result = num1 + num2
             logger.info(`外部工具 twoSum 被调用，num1=${num1}，num2=${num2}，返回结果: ${result}`)

@@ -25,7 +25,7 @@ export async function startAntfeMCP(
     // 注册这个工具
     server.mcp.tool(
         'getAntfeMember',
-        '获取Antfe组织成员信息。',
+        '获取Antfe组织的成员信息。',
         {}, // 无输入参数，传入空对象
         async () => {
             const member = '显林叔'

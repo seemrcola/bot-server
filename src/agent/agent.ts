@@ -80,7 +80,7 @@ export class Agent {
 
         const toolCatalog = availableTools.map(t => ({
             name: t.name,
-            description: t.annotations?.title ?? '',
+            description: t.description ?? t.annotations?.title ?? '',
             inputSchema: t.inputSchema ?? {},
         }))
 

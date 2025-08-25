@@ -26,11 +26,11 @@ export async function startCompareMCP(
     // 注册这个工具
     server.mcp.tool(
         'compare',
+        '比较两个数的大小。',
         {
             num1: z.number().describe('第一个数'),
             num2: z.number().describe('第二个数'),
         },
-        { title: '比较两个数的大小。' },
         async ({ num1, num2 }) => {
             const bool = num1 > num2
             const result = bool ? `${num1} 大于 ${num2}` : `${num1} 小于 ${num2}`

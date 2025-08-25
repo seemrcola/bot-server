@@ -1,3 +1,4 @@
+import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 import { createLogger } from '../../utils/logger.js'
 import { MCPHttpClient } from './MCPClient.js'
 
@@ -15,15 +16,7 @@ export interface ExternalServerConfig {
 /**
  * 外部工具的结构
  */
-export interface ExternalTool {
-    name: string
-    inputSchema?: unknown
-    annotations?: {
-        title?: string
-        [key: string]: string
-    }
-    [key: string]: any
-}
+export type ExternalTool = Tool
 
 /**
  * 管理与多个外部 MCP 服务器的连接。
