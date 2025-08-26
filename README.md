@@ -330,28 +330,9 @@ export async function startCustomServer(port: number, host: string) {
 }
 ```
 
-## 🚨 常见问题
-
-### Q: 如何处理工具调用失败？
-A: 系统已内置错误处理机制，工具调用失败时会记录日志并继续执行。
-
-### Q: 如何跳过意图分析？
-A: 目前不支持跳过，但可以通过修改ChainOptions添加skipIntentAnalysis选项。
-
-### Q: 支持哪些LLM模型？
-A: 支持所有符合LangChain BaseLanguageModel接口的模型。
-
-### Q: 如何自定义响应增强逻辑？
-A: 可以继承ResponseEnhancementStep类或创建新的步骤类。
-
-### Q: MCP工具如何实现流式输出？
-A: 需要工具端分片产出并通过MCP推送，客户端再提供AsyncIterable管道。
-
-### Q: 接下来做什么功能？
-A：
-- 添加单元测试：为核心模块添加测试用例
-- 性能监控：添加请求耗时、成功率等指标
-- 配置验证：增强环境变量和配置的验证
+## TODO
+1. 目前只有正常对话能够记住上下文，工具调用无法记住上下文。 后续支持agent和工具调用单独处理上下文
+2. 支持图片识别（需要换一个多模态模型）
 
 ## 📚 相关文档
 
