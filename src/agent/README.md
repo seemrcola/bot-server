@@ -346,12 +346,6 @@ A: 支持所有符合LangChain BaseLanguageModel接口的模型。
 - [ReAct流程](./docs/react-flow.md)
 - [MCP协议文档](https://modelcontextprotocol.io/)
 
-## 🔄 版本历史
-
-- **v2.1.0**: 执行器模块合并优化，提高模块内聚性和可维护性
-- **v2.0.0**: 引入链式处理架构，重构为模块化设计
-- **v1.0.0**: 基础ReAct执行器实现
-
 ---
 
 如需独立打包发布，可将本目录作为一个独立包输出，并在 `index.ts` 暴露相关类与类型。
