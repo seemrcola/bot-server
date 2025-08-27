@@ -132,4 +132,35 @@ export class AgentManager {
             isLeader: leader === name,
         }))
     }
+
+    /**
+     * 批量获取多个 Agent 实例
+     * @param names Agent 名称列表
+     * @returns Agent 实例数组，不存在的返回 undefined
+     */
+    public getMultipleAgents(names: string[]): Array<{ name: string, agent: Agent | undefined }> {
+        return names.map(name => ({
+            name,
+            agent: this.getAgent(name),
+        }))
+    }
+
+    /**
+     * 批量获取多个有效的 Agent 实例（过滤不存在的）
+     * @param names Agent 名称列表
+     * @returns 有效的 Agent 实例数组
+     */
+    public getValidAgents(names: string[]): Array<{ name: string, agent: Agent }> {
+        const result: Array<{ name: string, agent: Agent }> = []
+        for (const name of names) {
+            const agent = this.getAgent(name)
+            if (agent) {
+                result.push({ name, agent })
+            }
+            else {
+                logger.warn(`Agent [${name}] 不存在，已跳过`)
+            }
+        }
+        return result
+    }
 }

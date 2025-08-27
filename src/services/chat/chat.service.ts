@@ -36,6 +36,9 @@ class ChatService {
             agentName?: string
             reactVerbose?: boolean
             temperature?: number
+            enableMultiAgent?: boolean // 新增：是否启用多 Agent 模式
+            multiAgentThreshold?: number // 新增：多 Agent 置信度阈值
+            maxAgents?: number // 新增：最大 Agent 数量
         },
     ): Promise<AsyncIterable<string>> {
         await ensureBootstrap()
@@ -44,12 +47,15 @@ class ChatService {
             logger.error('严重错误: AgentManager 未初始化！')
             throw new Error('AgentManager 尚未初始化，无法处理聊天请求。')
         }
-        // 路由选择：优先显式指定；否则仅使用 LLM 精准路由；不命中则回退 Leader
+        // 路由选择：优先显式指定；否则使用多 Agent 或 LLM 精准路由；不命中则回退 Leader
         return runWithLeader(messages, {
             maxSteps: options.maxSteps,
             reactVerbose: options.reactVerbose,
             temperature: options.temperature,
             agentName: options.agentName,
+            enableMultiAgent: options.enableMultiAgent,
+            multiAgentThreshold: options.multiAgentThreshold,
+            maxAgents: options.maxAgents,
         })
     }
 }

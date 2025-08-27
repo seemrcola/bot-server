@@ -7,7 +7,16 @@ const logger = createLogger('ChatController')
 
 export async function streamChatHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-        const { messages, sessionId, reactVerbose, agentName, temperature } = req.body
+        const {
+            messages,
+            sessionId,
+            reactVerbose,
+            agentName,
+            temperature,
+            enableMultiAgent, // 新增：是否启用多 Agent 模式
+            multiAgentThreshold, // 新增：多 Agent 置信度阈值
+            maxAgents, // 新增：最大 Agent 数量
+        } = req.body
 
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
             res
@@ -19,7 +28,12 @@ export async function streamChatHandler(req: Request, res: Response, next: NextF
         res.setHeader('Content-Type', 'text/plain; charset=utf-8')
         res.flushHeaders()
 
-        logger.info('开始处理流式聊天请求 (Agent链式处理)', { sessionId })
+        if (enableMultiAgent) {
+            logger.info('开始处理流式聊天请求 (多 Agent 协作模式)', { sessionId, maxAgents, multiAgentThreshold })
+        }
+        else {
+            logger.info('开始处理流式聊天请求 (Agent链式处理)', { sessionId })
+        }
 
         // 使用Agent链式处理：意图分析 -> 执行 -> 增强回复
         const stream = await chatService.runChainStream(messages as BaseMessage[], {
@@ -27,6 +41,9 @@ export async function streamChatHandler(req: Request, res: Response, next: NextF
             agentName,
             reactVerbose,
             temperature,
+            enableMultiAgent,
+            multiAgentThreshold,
+            maxAgents,
         })
 
         // 直接流式输出结果

@@ -14,8 +14,8 @@ export { default as leader } from './Leader/index.js'
 // Agent 管理器（供需要时直接操作管理器的场景使用）
 export { AgentManager } from './manager.js'
 
-// 运行编排（显式 → LLM → Leader 兜底），对外唯一执行入口
-export { runWithLeader } from './orchestrator.js'
+// 运行编排（显式 → 多Agent → LLM → Leader 兜底），对外唯一执行入口
+export { runWithLeader, runWithMultipleAgents } from './orchestrator.js'
 
 // LLM 路由（如需单独调用）
-export { selectAgentByLLM } from './router.js'
+export { selectAgentByLLM, selectMultipleAgentsByLLM } from './router.js'
