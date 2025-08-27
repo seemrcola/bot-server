@@ -22,22 +22,24 @@ export class IntentAnalysisStep implements ChainStep {
         const intentMessages: BaseMessage[] = [
             new SystemMessage([
                 context.agent.systemPromptValue,
-                '你是意图分析器。任务：判断用户是否需要使用外部工具才能得到高质量答案。',
+                '你是意图分析器。任务：基于完整对话上下文，判断用户是否需要使用外部工具才能得到高质量答案。',
                 '仅输出一个 JSON 对象，不要额外文本或代码块。',
                 '{',
                 '  "use_tools": true | false,',
                 '  "reason": "简要说明判断依据"',
                 '}',
                 '判断依据：',
+                '- 基于完整对话历史理解用户真实意图；',
                 '- 当与我们所提供的工具目录存在吻合度较高的描述时，请认为需要工具；',
+                '- 当用户说"再查一次"、"重新查询"等时，应理解为需要重新调用相关工具；',
                 '- 当与工具目录描述不存在较高吻合度时，请认为不需要工具。',
             ].join('\n')),
             new HumanMessage([
-                '用户最后一条消息：',
-                JSON.stringify(context.messages[context.messages.length - 1] ? context.messages[context.messages.length - 1] : {}),
+                '完整对话历史：',
+                JSON.stringify(context.messages),
                 '\n\n可用工具列表：',
                 JSON.stringify(toolCatalog),
-                '\n\n请输出判断 JSON：',
+                '\n\n请基于以上完整对话上下文输出判断 JSON：',
             ].join('')),
         ]
 

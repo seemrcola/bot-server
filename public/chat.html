@@ -21,6 +21,7 @@
           <span id="statePill" class="ml-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">空闲</span>
         </div>
         <div class="flex items-center gap-4">
+          <button id="clearBtn" class="px-3 py-1.5 text-xs rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100">清空对话</button>
           <div class="flex items-center gap-2">
             <label class="text-xs text-slate-500">Base URL</label>
             <input id="baseUrl" class="px-3 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 text-sm w-[280px] focus:outline-none focus:ring-2 focus:ring-slate-200" value="http://localhost:3000" />
@@ -34,11 +35,12 @@
           <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
             <div>
               <div class="text-sm font-medium text-slate-900 tracking-tight">对话</div>
-              <div class="text-xs text-slate-500">普通对话 / 工具调用</div>
+              <div class="text-xs text-slate-500">支持多轮对话 / 工具调用</div>
             </div>
             <div class="flex items-center gap-2">
               <button data-preset="hello" class="preset-btn px-2.5 py-1.5 text-xs rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100">普通对话</button>
               <button data-preset="tool" class="preset-btn px-2.5 py-1.5 text-xs rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100">工具调用</button>
+              <button data-preset="context" class="preset-btn px-2.5 py-1.5 text-xs rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100">上下文测试</button>
             </div>
           </div>
 
@@ -53,7 +55,7 @@
               <textarea id="userInput" class="flex-1 px-3 py-2 rounded-lg bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200" rows="2" placeholder="输入你的问题..."></textarea>
               <button id="sendBtn" class="px-4 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800">发送</button>
             </div>
-            <div class="mt-2 text-xs text-slate-500">提示：服务地址使用上方 Base URL（默认 http://localhost:3000）</div>
+            <div class="mt-2 text-xs text-slate-500">提示：支持多轮对话，可以说"再查一次"、"重新查询"等上下文指令</div>
           </div>
         </section>
 
@@ -99,6 +101,7 @@
       const panelMeta = $('panelMeta')
       const userInput = $('userInput')
       const sendBtn = $('sendBtn')
+      const clearBtn = $('clearBtn')
       
       const statePill = $('statePill')
       
@@ -115,9 +118,12 @@
       const metaBox = document.getElementById('metaContent')
 
       let cachedReactSteps = []
+      let conversationHistory = [] // 维护完整对话历史
 
       function setState(text, color) {
-        statePill.textContent = text
+        const turnCount = Math.floor(conversationHistory.length / 2) // 计算对话轮数
+        const displayText = turnCount > 0 ? `${text} (第${turnCount}轮)` : text
+        statePill.textContent = displayText
         statePill.className = 'ml-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium '
           + (color || 'bg-indigo-50 text-indigo-700')
       }
@@ -163,17 +169,21 @@
         chatList.innerHTML = ''
         panelSteps.innerHTML = ''
         cachedReactSteps = []
+        conversationHistory = [] // 清空对话历史
         setState('空闲')
       }
 
-      async function streamChat(messages, options = {}) {
+      async function streamChat(userMessage) {
+        // 添加用户消息到历史
+        conversationHistory.push({ type: 'human', content: userMessage })
+        
         const url = (baseUrl.value || '').replace(/\/$/, '') + '/api/chat/stream'
 
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            messages,
+            messages: conversationHistory, // 传入完整对话历史
             reactVerbose: true,
           })
         })
@@ -188,6 +198,7 @@
         }
 
         let hasFinal = false
+        let aiResponse = '' // 用于积累AI的完整回复
         needsUserInput = false
 
         while (true) {
@@ -206,9 +217,15 @@
             } catch (_) {}
 
             // 2) 增强后的 Markdown 文本（拼接显示）
+            aiResponse += line // 积累AI回复
             aiBox.textContent += line
             chatList.scrollTop = chatList.scrollHeight
           }
+        }
+
+        // 将AI回复添加到对话历史
+        if (aiResponse.trim()) {
+          conversationHistory.push({ type: 'ai', content: aiResponse.trim() })
         }
 
         return { hasFinal }
@@ -219,11 +236,15 @@
         if (!text) return
         setState('执行中')
         appendUser(text)
-        const { hasFinal } = await streamChat([
-          { type: 'human', content: text }
-        ])
+        const { hasFinal } = await streamChat(text) // 直接传入用户消息
         setState('完成', 'bg-emerald-50 text-emerald-700')
         userInput.value = ''
+      })
+
+      clearBtn.addEventListener('click', () => {
+        if (confirm('确定要清空对话历史吗？')) {
+          clearUI()
+        }
       })
 
       
@@ -233,6 +254,7 @@
           const t = btn.getAttribute('data-preset')
           if (t === 'hello') userInput.value = '你好，请用三句话介绍你自己'
           if (t === 'tool') userInput.value = '获取当前系统信息与北京天气，并整理成要点列表'
+          if (t === 'context') userInput.value = '请先帮我查一下系统信息'
         })
       })
 

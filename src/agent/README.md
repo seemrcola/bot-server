@@ -229,6 +229,7 @@ interface ChainOptions {
 ### 创建MCP服务
 
 ```typescript
+import { z } from 'zod'
 import { MCPServer } from './index.js'
 
 const server = new MCPServer({
@@ -236,13 +237,16 @@ const server = new MCPServer({
     version: '1.0.0'
 })
 
-server.mcp.tool(
+server.mcp.registerTool(
     'compare',
-    { num1: z.number(), num2: z.number() },
-    { title: '比较两个数' },
-    async ({ num1, num2 }) => ({
-        content: [{ type: 'text', text: `比较结果：${num1 > num2 ? 'num1 大于 num2' : 'num1 小于等于 num2'}` }],
-        structuredContent: { result: num1 > num2 ? 'gt' : 'le' },
+    {
+        description: '比较两个数字大小',
+        parameters: {
+            a: z.number().description('第一个数字'),
+        }
+    },
+    async params => ({
+
     })
 )
 
@@ -326,20 +330,6 @@ for await (const chunk of chain.runChain(messages)) {
 }
 console.log(`处理耗时: ${Date.now() - startTime}ms`)
 ```
-
-## 🚨 常见问题
-
-### Q: 如何处理工具调用失败？
-A: 在ReActExecutionStep中已包含错误处理，失败时会记录日志并继续执行。
-
-### Q: 如何跳过意图分析？
-A: 目前不支持跳过，但可以通过修改ChainOptions添加skipIntentAnalysis选项。
-
-### Q: 如何自定义响应增强逻辑？
-A: 可以继承ResponseEnhancementStep类或创建新的步骤类。
-
-### Q: 支持哪些LLM模型？
-A: 支持所有符合LangChain BaseLanguageModel接口的模型。
 
 ## 📚 相关文档
 

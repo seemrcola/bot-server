@@ -26,19 +26,21 @@ export class ResponseEnhancementStep implements ChainStep {
         const enhanceMessages: BaseMessage[] = [
             new SystemMessage([
                 context.agent.systemPromptValue,
-                '你是回复增强器。任务：将ReAct执行结果转换为用户友好的Markdown格式回答。',
+                '你是回复增强器。任务：基于完整对话上下文，将ReAct执行结果转换为用户友好的Markdown格式回答。',
                 '要求：',
+                '- 基于完整对话上下文理解用户意图',
+                '- 确保回答的连贯性和上下文相关性',
                 '- 保持专业性和准确性',
                 '- 使用Markdown格式',
                 '- 如果涉及工具调用，可以简要提及使用的工具',
                 '- 确保回答完整且易于理解',
             ].join('\n')),
             new HumanMessage([
-                '原始问题：',
-                JSON.stringify(context.messages[context.messages.length - 1] ? context.messages[context.messages.length - 1] : {}),
+                '完整对话上下文：',
+                JSON.stringify(context.messages),
                 '\n\nReAct执行结果：',
                 JSON.stringify({ finalAnswer, toolCalls }),
-                '\n\n请输出增强后的Markdown回答：',
+                '\n\n请基于以上完整对话上下文和ReAct执行结果，输出增强后的Markdown回答：',
             ].join('')),
         ]
 

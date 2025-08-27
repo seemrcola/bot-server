@@ -46,8 +46,7 @@ export class PromptReActExecutor {
     ): AsyncIterable<string> {
         const maxSteps = options.maxSteps ?? MAX_STEPS
 
-        const userMessage = messages[messages.length - 1]
-        if (!userMessage) {
+        if (!messages || messages.length === 0) {
             yield JSON.stringify({ error: '未收到任何消息。' })
             return
         }
@@ -65,6 +64,7 @@ export class PromptReActExecutor {
                     [
                         this.systemPrompt,
                         '你正在以 ReAct 模式进行推理与工具使用。',
+                        '基于完整对话上下文进行分析和决策，确保回答的连贯性。',
                         '严格以 JSON 输出（不可包含多余说明、不可使用 Markdown 代码块）。',
                         'JSON 结构如下：',
                         '{',
@@ -82,17 +82,18 @@ export class PromptReActExecutor {
                         '- 当 action 为 tool_call 时，必须给出 action_input.tool_name 和 action_input.parameters；',
                         '- 当 action 为 final_answer 时，必须给出 answer；',
                         '- 仅当必要工具已调用且信息充分时，才可输出 final_answer。',
+                        '- 如果用户说"再查一次"、"重新查询"等，应重新调用相关工具而不是直接使用历史结果。',
                     ].join('\n'),
                 ),
                 new HumanMessage(
                     [
-                        '任务: ',
-                        stringifySafe(userMessage),
+                        '完整对话上下文: ',
+                        JSON.stringify(messages),
                         '\n\n可用工具(仅名称/描述/输入Schema)：',
                         JSON.stringify(toolCatalog, null, 2),
                         '\n\n历史步骤(如有)：',
                         JSON.stringify(steps, null, 2),
-                        '\n\n请给出下一步的 JSON 决策：',
+                        '\n\n请基于以上完整对话上下文给出下一步的 JSON 决策：',
                     ].join(''),
                 ),
             ]
@@ -188,16 +189,4 @@ function normalizeStep(obj: any): ReActStep {
         }
     }
     return step
-}
-
-function stringifySafe(message: BaseMessage): string {
-    try {
-        return JSON.stringify({
-            type: (message as any)?.getType?.(),
-            content: (message as any)?.content ?? '',
-        })
-    }
-    catch {
-        return String((message as any)?.content ?? '')
-    }
 }
