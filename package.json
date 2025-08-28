@@ -1,8 +1,8 @@
 {
-    "name": "server",
+    "name": "AI Agent Server Template",
     "type": "module",
     "version": "1.0.0",
-    "description": "Node.js server with TypeScript and ES modules",
+    "description": "AI Agent; Agent; Langchain; Chatbot; MCP",
     "author": "",
     "license": "MIT",
     "keywords": [
@@ -10,7 +10,9 @@
         "typescript",
         "es-modules",
         "mcp",
-        "chatbot"
+        "chatbot",
+        "langchain",
+        "AI Agent"
     ],
     "main": "dist/index.js",
     "engines": {

@@ -110,8 +110,7 @@ Content-Type: application/json
     ],
     "reactVerbose": false,
     "maxAgents": 3,
-    "routingThreshold": 0.5,
-    "forceMultiAgent": false
+    "routingThreshold": 0.5
 }
 ```
 
@@ -123,7 +122,6 @@ Content-Type: application/json
 - `agentName`（可选）: 显式指定要执行的Agent；不传则走智能路由
 - `maxAgents`（可选，默认5）: 最大Agent数量（统一支持1-N个Agent处理）
 - `routingThreshold`（可选，默认0.5）: Agent路由的置信度阈值
-- `forceMultiAgent`（可选，默认false）: 是否强制使用多Agent路由模式
 
 **响应：** `text/plain` 流式输出
 
@@ -147,12 +145,11 @@ curl -N -X POST http://localhost:3000/api/chat/stream \
     "maxAgents": 3
   }'
 
-# 强制多Agent模式
+# 智能多Agent路由
 curl -N -X POST http://localhost:3000/api/chat/stream \
   -H 'Content-Type: application/json' \
   -d '{
     "messages":[{"type":"human","content":"查询系统状态并做数学计算"}],
-    "forceMultiAgent": true,
     "maxAgents": 2,
     "routingThreshold": 0.3
   }'
@@ -207,7 +204,9 @@ AgentChain.runChain() × N
 ## TODO
 1. 目前只有正常对话能够记住上下文，工具调用无法记住上下文。 后续支持agent和工具调用单独处理上下文 [✅]
 2. 支持图片识别（需要换一个多模态模型）
-3. leader agent每次只能唤起一个agent，后续要支持多agent协同处理
+3. 支持多Agent协同处理复杂任务 [✅ 已实现统一多Agent架构]
+4. 支持持久化对话历史和上下文管理
+5. 添加更多专业领域的Agent（如代码生成、数据分析等）
 
 ## 📚 相关文档
 

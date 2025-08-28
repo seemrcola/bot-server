@@ -121,4 +121,48 @@ graph LR
 如今大模型已经足够聪明，我们可以不需要function calling 这种模式，使用prompt效果已经够好，而且兼容性更好。
 
 ### 多Agent
-...ing
+
+随着AI应用的复杂化，单一Agent往往无法处理所有类型的任务。多Agent系统通过将不同领域的专业能力分配给不同的Agent，实现了更好的任务处理效果。
+
+#### 多Agent架构的优势
+
+1. **专业化分工**：每个Agent专注于特定领域，提供更准确的服务
+2. **可扩展性**：可以根据需要添加新的专业Agent
+3. **模块化管理**：Agent之间相对独立，便于维护和更新
+4. **负载分散**：不同类型的请求可以由相应的专业Agent处理
+
+#### 本项目的多Agent实现
+
+我们的项目采用了"Leader + 子Agent"的架构模式：
+
+```mermaid
+graph TD
+    User["用户请求"] --> Router["智能路由"]
+    Router --> Leader["Leader Agent"]
+    Router --> AntfeAgent["Antfe Agent"]
+    Router --> TestAgent["Test Agent"]
+    Router --> OtherAgent["其他专业Agent"]
+
+    Leader --> LLM1["通用LLM"]
+    AntfeAgent --> LLM2["专业LLM"]
+    TestAgent --> LLM3["专业LLM"]
+
+    Leader --> Tools1["系统工具\n比较工具\n求和工具"]
+    AntfeAgent --> Tools2["Antfe成员查询"]
+    TestAgent --> Tools3["训练清单工具"]
+```
+
+#### 路由策略
+
+1. **显式指定**：用户明确指定要使用的Agent
+2. **智能路由**：使用LLM分析用户需求，自动选择最合适的Agent
+3. **Leader兜底**：当没有合适的专业Agent时，由Leader Agent处理
+
+#### 实际应用场景
+
+- **通用对话**：由Leader Agent处理日常对话和基础问答
+- **团队信息查询**：由Antfe Agent处理团队成员相关的查询
+- **专业计算**：由相应的专业Agent处理特定领域的计算任务
+- **多步骤任务**：可能需要多个Agent协同完成复杂任务
+
+通过这种架构，我们实现了既保持系统简单性，又能处理复杂专业任务的平衡。
