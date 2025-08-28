@@ -1,5 +1,5 @@
 import getPort, { portNumbers } from 'get-port'
-import { createLogger } from '../../../utils/logger.js'
+import { createLogger } from '@/utils/logger.js'
 import { startAntfeMCP } from './member.js'
 
 const logger = createLogger('AntfeMCP')

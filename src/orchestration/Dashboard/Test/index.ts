@@ -1,13 +1,11 @@
 import getPort, { portNumbers } from 'get-port'
-import { createLogger } from '../../../utils/logger.js'
-import { startTestCompareMCP } from './compare.js'
-import { startTestTwoSumMCP } from './twoSum.js'
+import { createLogger } from '@/utils/logger.js'
+import { startTestStrenthTrainingListMCP } from './training.js'
 
 const logger = createLogger('TestAgent')
 
 const mcpServersDescription = [
-    { name: 'test-compare-mcp-server', starter: startTestCompareMCP },
-    { name: 'test-twosum-mcp-server', starter: startTestTwoSumMCP },
+    { name: 'test-strenth-training-list-mcp-server', starter: startTestStrenthTrainingListMCP },
 ]
 
 export async function startTestServers() {
@@ -24,9 +22,9 @@ export async function startTestServers() {
 export default {
     name: 'test-agent',
     starter: startTestServers,
-    agentDescription: '测试代理，专门用于数学计算和比较操作，包含两数相加和数值比较功能',
+    agentDescription: '测试代理，专门用于力量训练列表',
     meta: {
-        keywords: ['测试', '数学', '计算', '比较', '加法', '两数相加', '数值比较'],
-        aliases: ['test', 'math', 'calculate', 'compare'],
+        keywords: ['测试', '力量训练', '训练列表'],
+        aliases: ['test', 'strength', 'training', 'list'],
     },
 }

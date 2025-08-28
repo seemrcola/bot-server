@@ -1,10 +1,9 @@
 import type { BaseMessage } from '@langchain/core/messages'
-import { AgentChain } from '../agent/index.js'
-import { globals } from '../globals.js'
-import { createLogger } from '../utils/logger.js'
+import { AgentChain } from '@/agent/index.js'
+import { globals } from '@/globals.js'
+import { createLogger } from '@/utils/logger.js'
 import { selectAgentByLLM, selectMultipleAgentsByLLM } from './router.js'
 
-// 从 router.ts 导入工具函数
 function getLastHumanText(messages: BaseMessage[]): string {
     for (let i = messages.length - 1; i >= 0; i--) {
         const m: any = messages[i]
@@ -24,13 +23,14 @@ export interface OrchestratorOptions {
     reactVerbose?: boolean | undefined // 是否输出详细ReAct步骤
     temperature?: number | undefined // 采样温度
     agentName?: string | undefined // 显式指定要执行的 Agent；通常不指定，由系统进行 LLM 路由
-    enableMultiAgent?: boolean | undefined // 是否启用多 Agent 模式，默认 false
-    multiAgentThreshold?: number | undefined // 多Agent路由的置信度阈值，默认0.3
-    maxAgents?: number | undefined // 最大Agent数量，默认3
+    routingThreshold?: number | undefined // Agent路由的置信度阈值，默认0.5
+    maxAgents?: number | undefined // 最大Agent数量，默认5（支持1-N个Agent）
+    forceMultiAgent?: boolean | undefined // 是否强制使用多Agent路由，默认false
 }
 
 /**
- * 运行编排（显式 → 多 Agent → LLM → Leader 兜底），对外唯一执行入口
+ * 统一的Agent编排执行入口（支持1-N个Agent的统一处理）
+ * 执行优先级：显式指定 → 智能路由选择 → Leader兜底
  * @param messages - 聊天消息
  * @param options - 聊天选项
  * @returns 流式聊天响应
@@ -45,122 +45,89 @@ export async function runWithLeader(
         throw new Error('AgentManager 尚未初始化')
     }
 
-    // 显式指定 Agent 优先级最高
-    const explicit = (options.agentName ?? '').trim() // 显式指定要执行的 Agent
+    // 1. 显式指定Agent（最高优先级）
+    const explicitAgentName = (options.agentName ?? '').trim()
+    if (explicitAgentName && agentManager.getAgent(explicitAgentName)) {
+        const selectedAgents = [{
+            name: explicitAgentName,
+            reason: '用户显式指定',
+            confidence: 1.0,
+        }]
+        logger.info(`显式指定模式：使用 Agent: ${explicitAgentName}`)
+        return createUnifiedAgentStream(messages, selectedAgents, options)
+    }
 
-    if (explicit && agentManager.getAgent(explicit)) {
-        // 显式指定模式：直接使用指定的 Agent
-        const agent = agentManager.getAgent(explicit)!
-        logger.info(`显式指定模式：使用 Agent: ${explicit}`)
+    // 2. 智能路由选择Agent（支持1-N个）
+    const routingThreshold = options.routingThreshold ?? 0.5
+    const maxAgents = options.maxAgents ?? 5
+    const forceMultiAgent = options.forceMultiAgent ?? false
 
-        const chain = new AgentChain(agent)
-        const chainOptions: any = {
-            maxSteps: options.maxSteps ?? 8,
-            reactVerbose: options.reactVerbose ?? false,
+    // 尝试多Agent路由（如果配置允许或强制要求）
+    if (forceMultiAgent || maxAgents > 1) {
+        console.log('Trying multi-agent routing..........................................................................')
+        const [multiErr, multiData] = await selectMultipleAgentsByLLM({
+            agentManager,
+            messages,
+            threshold: routingThreshold,
+            maxAgents,
+        })
+
+        if (!multiErr && multiData && multiData.agents.length > 0) {
+            logger.info(`智能多Agent路由：选择了 ${multiData.agents.length} 个Agent: ${multiData.agents.map(a => a.name).join(' -> ')}`)
+            return createUnifiedAgentStream(messages, multiData.agents, options)
         }
-        if (typeof options.temperature === 'number') {
-            chainOptions.temperature = options.temperature
-        }
 
-        return chain.runChain(messages, chainOptions)
+        logger.warn(`多Agent路由失败（${multiErr}），回退到单Agent路由`)
     }
 
-    // 检查是否启用多 Agent 模式
-    if (options.enableMultiAgent !== false) { // 默认为 false，但在某些情况下可以启用
-        try {
-            return await runWithMultipleAgents(messages, options)
-        }
-        catch (error) {
-            logger.warn('多 Agent 模式失败，回退到单 Agent 模式', error)
-            // 继续执行单 Agent 模式
-        }
+    // 3. 单Agent路由
+    const [singleErr, singleData] = await selectAgentByLLM({
+        agentManager,
+        messages,
+        threshold: routingThreshold,
+    })
+
+    if (!singleErr && singleData) {
+        const selectedAgents = [singleData]
+        logger.info(`智能单Agent路由：选择 Agent: ${singleData.name}（置信度: ${(singleData.confidence * 100).toFixed(1)}%）`)
+        return createUnifiedAgentStream(messages, selectedAgents, options)
     }
 
-    // 单 Agent 模式：使用 LLM 路由或 Leader 兜底
-    let chosenName: string | undefined // 最终选定的 Agent 名称
-    let reason = '' // 选择原因
-
-    // 使用 LLM 路由
-    const [err, data] = await selectAgentByLLM({ agentManager, messages })
-    // 如果路由失败，则回退到 Leader Agent
-    if (err) {
-        chosenName = agentManager.getLeaderName()
-        reason = `fallback:llm_route_failed:${err}`
-        logger.warn(`LLM 路由失败，回退到 Leader Agent（原因: ${err}）`)
-    }
-    // 路由成功
-    else {
-        chosenName = data!.name
-        reason = `llm:${data!.reason}|confidence:${data!.confidence}`
-    }
-
-    const agent = agentManager.getAgent(chosenName!)!
-    logger.info(`单 Agent 模式：使用 Agent: ${chosenName}（原因: ${reason}）`)
-
-    // 创建 AgentChain 实例
-    const chain = new AgentChain(agent)
-    const chainOptions: any = {
-        maxSteps: options.maxSteps ?? 8,
-        reactVerbose: options.reactVerbose ?? false,
-    }
-    if (typeof options.temperature === 'number') {
-        chainOptions.temperature = options.temperature
-    }
-
-    // 执行链式流程
-    return chain.runChain(messages, chainOptions)
+    // 4. Leader兜底（保证总是有响应）
+    const leaderName = agentManager.getLeaderName()!
+    const selectedAgents = [{
+        name: leaderName,
+        reason: `兜底处理（路由失败: ${singleErr}）`,
+        confidence: 1.0,
+    }]
+    logger.info(`Leader兜底模式：使用 Leader Agent: ${leaderName}`)
+    return createUnifiedAgentStream(messages, selectedAgents, options)
 }
 
 /**
- * 多 Agent 顺序执行模式：根据 LLM 路由结果，顺序调用多个 Agent 处理用户请求
- * @param messages - 聊天消息
- * @param options - 聊天选项
- * @returns 流式聊天响应
+ * @deprecated 已废弃，请使用统一的 runWithLeader 函数
+ * 为了向后兼容保留此函数，内部调用 runWithLeader
  */
 export async function runWithMultipleAgents(
     messages: BaseMessage[],
     options: OrchestratorOptions = {},
 ): Promise<AsyncIterable<string>> {
-    const agentManager = globals.agentManager
-    if (!agentManager) {
-        logger.error('AgentManager 未初始化')
-        throw new Error('AgentManager 尚未初始化')
-    }
-
-    const multiAgentThreshold = options.multiAgentThreshold ?? 0.3
-    const maxAgents = options.maxAgents ?? 3
-
-    // 使用多 Agent 路由
-    const [err, data] = await selectMultipleAgentsByLLM({
-        agentManager,
-        messages,
-        threshold: multiAgentThreshold,
-        maxAgents,
-    })
-
-    if (err || !data || data.agents.length === 0) {
-        // 回退到单 Agent 模式
-        logger.warn(`多 Agent 路由失败（${err}），回退到单 Agent 模式`)
-        return runWithLeader(messages, { ...options, enableMultiAgent: false })
-    }
-
-    const selectedAgents = data.agents
-    logger.info(`多 Agent 模式：将顺序调用 ${selectedAgents.length} 个 Agent: ${selectedAgents.map(a => a.name).join(' -> ')}`)
-
-    // 为多个 Agent 创建流式生成器
-    return createMultiAgentStream(messages, selectedAgents, options)
+    logger.warn('runWithMultipleAgents 已废弃，建议直接使用 runWithLeader')
+    return runWithLeader(messages, { ...options, forceMultiAgent: true })
 }
 
 /**
- * 创建多 Agent 流式输出生成器
+ * 统一的Agent流式输出生成器（支持1-N个Agent）
+ * 当只有1个Agent时，简化输出；多个Agent时显示详细的切换信息
  */
-async function* createMultiAgentStream(
+async function* createUnifiedAgentStream(
     messages: BaseMessage[],
     selectedAgents: Array<{ name: string, reason: string, confidence: number, task?: string }>,
     options: OrchestratorOptions,
 ): AsyncGenerator<string, void, unknown> {
     const agentManager = globals.agentManager!
     let currentMessages = [...messages]
+    const isMultiAgent = selectedAgents.length > 1
 
     for (let i = 0; i < selectedAgents.length; i++) {
         const agentInfo = selectedAgents[i]
@@ -175,13 +142,20 @@ async function* createMultiAgentStream(
             continue
         }
 
-        // 输出 Agent 切换信息
-        const stepInfo = `\n\n--- Agent ${i + 1}/${selectedAgents.length}: ${agentInfo.name} (置信度: ${(agentInfo.confidence * 100).toFixed(1)}%) ---\n`
-        const reasonInfo = agentInfo.task
-            ? `任务分配: ${agentInfo.task}\n\n`
-            : `选择原因: ${agentInfo.reason}\n\n`
-        yield stepInfo
-        yield reasonInfo
+        // Agent启动提示（所有情况下都显示）
+        if (isMultiAgent) {
+            // 多Agent模式：显示详细的切换信息
+            const stepInfo = `\n\n--- Agent ${i + 1}/${selectedAgents.length}: ${agentInfo.name} (置信度: ${(agentInfo.confidence * 100).toFixed(1)}%) ---\n`
+            const reasonInfo = agentInfo.task
+                ? `任务分配: ${agentInfo.task}\n\n`
+                : `选择原因: ${agentInfo.reason}\n\n`
+            yield stepInfo
+            yield reasonInfo
+        }
+        else {
+            // 单Agent模式：简洁的启动提示
+            yield `🤖 正在启动 Agent: [${agentInfo.name}]\n\n`
+        }
 
         try {
             // 为当前 Agent 创建链式处理
@@ -226,8 +200,8 @@ async function* createMultiAgentStream(
                 yield chunk
             }
 
-            // 将当前 Agent 的输出作为下一个 Agent 的参考上下文
-            if (i < selectedAgents.length - 1 && agentOutput.trim()) {
+            // 多Agent模式：将当前 Agent 的输出作为下一个 Agent 的参考上下文
+            if (isMultiAgent && i < selectedAgents.length - 1 && agentOutput.trim()) {
                 // 为下一个 Agent 准备上下文
                 const { SystemMessage } = await import('@langchain/core/messages')
                 const nextAgentInfo = selectedAgents[i + 1]
@@ -256,6 +230,8 @@ async function* createMultiAgentStream(
         }
     }
 
-    // 所有 Agent 执行完成
-    yield `\n\n--- 所有 Agent 执行完成 ---\n`
+    // 多Agent模式才显示完成信息
+    if (isMultiAgent) {
+        yield `\n\n--- 所有 Agent 执行完成 ---\n`
+    }
 }

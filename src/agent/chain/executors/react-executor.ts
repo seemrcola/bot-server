@@ -149,15 +149,27 @@ export class PromptReActExecutor {
                     continue
                 }
 
+                // 添加工具调用开始的提示
+                const toolCallNotice: ReActStep = {
+                    thought: `正在调用工具: ${toolName}`,
+                    action: 'tool_call',
+                    action_input: {
+                        tool_name: toolName,
+                        parameters,
+                    },
+                    observation: `🔧 开始调用工具: [${toolName}]`,
+                }
+                yield JSON.stringify(toolCallNotice)
+
                 try {
                     const result = await this.clientManager.callTool(toolName, parameters)
                     const observation = extractDisplayableTextFromToolResult(result)
                     const lastStep = steps[steps.length - 1]!
-                    lastStep.observation = observation
+                    lastStep.observation = `✅ 工具 [${toolName}] 执行完成\n\n执行结果:\n${observation}`
                     yield JSON.stringify(lastStep)
                 }
                 catch (err) {
-                    const observation = `工具调用失败: ${err instanceof Error ? err.message : String(err)}`
+                    const observation = `❌ 工具 [${toolName}] 调用失败: ${err instanceof Error ? err.message : String(err)}`
                     const lastStep = steps[steps.length - 1]!
                     lastStep.observation = observation
                     yield JSON.stringify(lastStep)

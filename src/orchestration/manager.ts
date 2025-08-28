@@ -1,10 +1,10 @@
-import type { Agent } from '../agent/agent.js'
+import type { Agent } from '@/agent/index.js'
 /**
  * Agent Manager（Orchestration 层）
  * 负责创建、管理和提供多个 Agent 实例。
  * 注意：此处仅负责管理，不参与具体对话流程，保持与 agent 模块解耦。
  */
-import { createLogger } from '../utils/logger.js'
+import { createLogger } from '@/utils/logger.js'
 
 const logger = createLogger('AgentManager')
 

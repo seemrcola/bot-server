@@ -1,6 +1,6 @@
 import type { MCPServerDescription } from './types.js'
-import { Agent } from '../agent/index.js'
-import { createLogger } from '../utils/logger.js'
+import { Agent } from '@/agent/index.js'
+import { createLogger } from '@/utils/logger.js'
 import { dashboards } from './Dashboard/index.js'
 // leader 模块 和 dashboard 模块
 import leader from './Leader/index.js'
@@ -11,6 +11,22 @@ const logger = createLogger('OrchestrationBootstrap')
 
 const defaultSystemPrompt = `
 你是一个乐于助人的 AI 助手。回复内容请使用 Markdown 格式。`
+
+/**
+ * 初始化 Leader 模块
+ * @param externalMCPServers
+ * @returns
+ * 这个函数初始化的执行顺序是
+ * 1. 首先启动 Leader 的 MCP 服务
+ * 2. 使用Agnet模块 创建 Leader Agent
+ * 3. 注册Leader Agent
+ * 4. 使用dashboards 列表 注册子 Agent
+ *    - 启动子Agent的 MCP 服务
+ *    - 使用Agent模块 创建子Agent
+ *    - 注册子Agent
+ *
+ * 之所以要先启动MCP服务，是因为 Agent 模块需要传入 MCP 服务的 URL 列表
+ */
 
 export async function initLeaderOrchestration(externalMCPServers: MCPServerDescription[]): Promise<AgentManager> {
     const systemPrompt = defaultSystemPrompt

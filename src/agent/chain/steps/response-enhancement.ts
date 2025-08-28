@@ -32,7 +32,8 @@ export class ResponseEnhancementStep implements ChainStep {
                 '- 确保回答的连贯性和上下文相关性',
                 '- 保持专业性和准确性',
                 '- 使用Markdown格式',
-                '- 如果涉及工具调用，可以简要提及使用的工具',
+                '- 如果涉及工具调用，必须明确标注使用了哪些工具及其结果',
+                '- 工具调用信息可以用"📋 使用的工具："的格式来标注',
                 '- 确保回答完整且易于理解',
             ].join('\n')),
             new HumanMessage([

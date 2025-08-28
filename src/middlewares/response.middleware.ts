@@ -3,7 +3,7 @@
  */
 import type { NextFunction, Request, Response } from 'express'
 import process from 'node:process'
-import { createLogger } from '../utils/logger.js'
+import { createLogger } from '@/utils/logger.js'
 
 const logger = createLogger('ResponseMiddleware')
 

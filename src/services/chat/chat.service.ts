@@ -1,7 +1,7 @@
 import type { BaseMessage } from '@langchain/core/messages'
-import { globals } from '../../globals.js' // 从全局容器导入
-import { runWithLeader } from '../../orchestration/index.js'
-import { createLogger } from '../../utils/logger.js'
+import { globals } from '@/globals.js' // 从全局容器导入
+import { runWithLeader } from '@/orchestration/index.js'
+import { createLogger } from '@/utils/logger.js'
 
 const logger = createLogger('ChatService')
 
@@ -32,13 +32,13 @@ class ChatService {
     public async runChainStream(
         messages: BaseMessage[],
         options: {
-            maxSteps?: number
-            agentName?: string
-            reactVerbose?: boolean
-            temperature?: number
-            enableMultiAgent?: boolean // 新增：是否启用多 Agent 模式
-            multiAgentThreshold?: number // 新增：多 Agent 置信度阈值
-            maxAgents?: number // 新增：最大 Agent 数量
+            maxSteps?: number // 最大步骤数
+            agentName?: string // 指定Agent名称
+            reactVerbose?: boolean // ReAct模式下是否启用详细模式
+            temperature?: number // 模型温度
+            routingThreshold?: number // Agent路由的置信度阈值
+            maxAgents?: number // 最大Agent数量（支持1-N个Agent）
+            forceMultiAgent?: boolean // 是否强制使用多Agent路由
         },
     ): Promise<AsyncIterable<string>> {
         await ensureBootstrap()
@@ -47,15 +47,15 @@ class ChatService {
             logger.error('严重错误: AgentManager 未初始化！')
             throw new Error('AgentManager 尚未初始化，无法处理聊天请求。')
         }
-        // 路由选择：优先显式指定；否则使用多 Agent 或 LLM 精准路由；不命中则回退 Leader
+        // 使用统一的Agent编排接口
         return runWithLeader(messages, {
             maxSteps: options.maxSteps,
             reactVerbose: options.reactVerbose,
             temperature: options.temperature,
             agentName: options.agentName,
-            enableMultiAgent: options.enableMultiAgent,
-            multiAgentThreshold: options.multiAgentThreshold,
+            routingThreshold: options.routingThreshold,
             maxAgents: options.maxAgents,
+            forceMultiAgent: options.forceMultiAgent,
         })
     }
 }

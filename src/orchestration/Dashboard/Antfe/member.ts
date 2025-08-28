@@ -5,9 +5,9 @@ import { z } from 'zod'
  * 这是一个用于测试的、模拟的外部 MCP 服务器。
  * 它独立运行，并提供一个独特的工具，以验证 ClientManager 的功能。
  */
-import { MCPServer } from '../../../agent/index.js'
+import { MCPServer } from '@/agent/index.js'
 
-import { createLogger } from '../../../utils/logger.js'
+import { createLogger } from '@/utils/logger.js'
 
 const logger = createLogger('WeatherMCP')
 

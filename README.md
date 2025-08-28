@@ -6,6 +6,7 @@
 
 - **智能链式处理**：意图分析 → 执行 → 增强回复
 - **ReAct决策循环**：支持多次 `tool_call` → `observation` → `final_answer`
+- **统一Agent编排**：支持1-N个Agent的统一处理，不再区分单多Agent模式
 - **MCP外部工具**：自动发现和调用外部MCP工具服务
 - **流式输出**：完整的HTTP文本流输出
 - **执行策略**：统一为 Prompt 模式（已移除 Function 模式）
@@ -113,7 +114,10 @@ Content-Type: application/json
             "content": "给我打个招呼，然后获取当前服务信息"
         }
     ],
-    "reactVerbose": false
+    "reactVerbose": false,
+    "maxAgents": 3,
+    "routingThreshold": 0.5,
+    "forceMultiAgent": false
 }
 ```
 
@@ -122,14 +126,17 @@ Content-Type: application/json
 - `reactVerbose`（可选，默认false）：
   - `false`: 只返回最终增强后的答案
   - `true`: 返回详细的ReAct JSON步骤
-- `agentName`（可选）: 显式指定要执行的Agent；不传则走 LLM 精准路由与回退
+- `agentName`（可选）: 显式指定要执行的Agent；不传则走智能路由
+- `maxAgents`（可选，默认5）: 最大Agent数量（支持1-N个Agent）
+- `routingThreshold`（可选，默认0.5）: Agent路由的置信度阈值
+- `forceMultiAgent`（可选，默认false）: 是否强制使用多Agent路由
 
 **响应：** `text/plain` 流式输出
 
 ### 示例请求
 
 ```bash
-# 基础聊天
+# 基础聊天（单Agent）
 curl -N -X POST http://localhost:3000/api/chat/stream \
   -H 'Content-Type: application/json' \
   -d '{
@@ -137,12 +144,23 @@ curl -N -X POST http://localhost:3000/api/chat/stream \
     "reactVerbose": false
   }'
 
-# 工具调用
+# 工具调用（自动多Agent）
 curl -N -X POST http://localhost:3000/api/chat/stream \
   -H 'Content-Type: application/json' \
   -d '{
     "messages":[{"type":"human","content":"获取系统信息并比较 3 和 5 的大小"}],
-    "reactVerbose": true
+    "reactVerbose": true,
+    "maxAgents": 3
+  }'
+
+# 强制多Agent模式
+curl -N -X POST http://localhost:3000/api/chat/stream \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "messages":[{"type":"human","content":"查询系统状态并做数学计算"}],
+    "forceMultiAgent": true,
+    "maxAgents": 2,
+    "routingThreshold": 0.3
   }'
 ```
 
@@ -155,7 +173,11 @@ ChatController
     ↓
 ChatService.runChainStream()
     ↓
-AgentChain.runChain()
+统一Agent编排 (runWithLeader)
+    ↓
+显式指定 → 智能路由(1-N个Agent) → Leader兜底
+    ↓
+AgentChain.runChain() × N
     ↓
 意图分析 (IntentAnalysisStep)
     ↓

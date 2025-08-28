@@ -28,8 +28,25 @@ export class ReActExecutionStep implements ChainStep {
         // 消费执行器
         for await (const step of exec) {
             reactResults.push(step)
-            if (context.options.reactVerbose) {
-                yield `${step}\n`
+
+            // 解析step以检查是否包含工具调用信息
+            try {
+                const parsedStep = JSON.parse(step)
+
+                if (context.options.reactVerbose) {
+                    // verbose模式：展示详细信息，但移除thought字段
+                    const simplifiedStep = { ...parsedStep }
+                    delete simplifiedStep.thought // 移除思考过程
+                    yield `${JSON.stringify(simplifiedStep)}\n`
+                }
+                // 非verbose模式：完全屏蔽JSON格式，不输出任何ReAct步骤内容
+                // 只依赖react-executor.ts中直接输出的工具调用提示
+            }
+            catch {
+                // 如果JSON解析失败，按照原有逻辑处理
+                if (context.options.reactVerbose) {
+                    yield `${step}\n`
+                }
             }
         }
 

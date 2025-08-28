@@ -5,7 +5,7 @@ import express from 'express'
 import { config } from './config/index.js'
 import { globals } from './globals.js'
 import { handleError, handleSuccess } from './middlewares/response.middleware.js'
-import { initLeaderOrchestration, leader } from './orchestration/index.js'
+import { initLeaderOrchestration } from './orchestration/index.js'
 import { mainRouter } from './routes/index.js'
 import { createLogger } from './utils/logger.js'
 
@@ -35,11 +35,12 @@ app.use(handleError);
  */
 (async () => {
     try {
-    // 构建全局就绪 Promise（serverless 冷启动集中初始化）
+        // 构建全局就绪 Promise（serverless 冷启动集中初始化）
         globals.agentManagerReady = (async () => {
+            // 创建编排工具
             const agentManager = await initLeaderOrchestration([])
             globals.agentManager = agentManager
-            logger.info(`AgentManager 已创建并注册 Leader: ${leader.name}`)
+            logger.info(`AgentManager 已创建并注册 Leader`)
         })()
         await globals.agentManagerReady
     }

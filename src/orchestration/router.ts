@@ -1,7 +1,7 @@
 import type { BaseMessage } from '@langchain/core/messages'
 import type { AgentManager } from './manager.js'
 import { HumanMessage, SystemMessage } from '@langchain/core/messages'
-import { createLogger } from '../utils/logger.js'
+import { createLogger } from '@/utils/logger.js'
 
 const logger = createLogger('LLMAgentRouter')
 

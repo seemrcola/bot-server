@@ -1,8 +1,12 @@
 {
     "compilerOptions": {
         "target": "ES2022",
+        "baseUrl": ".",
         "module": "NodeNext",
         "moduleResolution": "NodeNext",
+        "paths": {
+            "@/*": ["src/*"]
+        },
         "resolveJsonModule": true,
         "types": ["node"],
         "strict": true,
