@@ -1,4 +1,5 @@
 import type { BaseMessage } from '@langchain/core/messages'
+import { HumanMessage, SystemMessage } from '@langchain/core/messages'
 import { AgentChain } from '@/agent/index.js'
 import { globals } from '@/globals.js'
 import { createLogger } from '@/utils/logger.js'
@@ -64,7 +65,6 @@ export async function runWithLeader(
 
     // 尝试多Agent路由（如果配置允许或强制要求）
     if (forceMultiAgent || maxAgents > 1) {
-        console.log('Trying multi-agent routing..........................................................................')
         const [multiErr, multiData] = await selectMultipleAgentsByLLM({
             agentManager,
             messages,
@@ -172,15 +172,13 @@ async function* createUnifiedAgentStream(
             let agentMessages: BaseMessage[]
             if (agentInfo.task && i > 0) {
                 // 如果有具体任务且不是第一个Agent，创建专门的任务消息
-                const { HumanMessage: HumanMessageClass } = await import('@langchain/core/messages')
-                const taskMessage = new HumanMessageClass(
+                const taskMessage = new HumanMessage(
                     `请专门处理以下任务：${agentInfo.task}\n\n原始用户需求供参考：${getLastHumanText(messages)}`,
                 )
                 agentMessages = [taskMessage]
             }
             else if (agentInfo.task) {
                 // 如果是第一个Agent但有具体任务，添加任务说明
-                const { SystemMessage } = await import('@langchain/core/messages')
                 const taskContext = new SystemMessage(
                     `重要指示：你的专门任务是：${agentInfo.task}。\n\n请注意：\n1. 只处理上述指定的任务\n2. 不要处理其他不相关的内容\n3. 其他任务将由专门的Agent处理\n4. 保持专业性和高效性`,
                 )
@@ -203,7 +201,6 @@ async function* createUnifiedAgentStream(
             // 多Agent模式：将当前 Agent 的输出作为下一个 Agent 的参考上下文
             if (isMultiAgent && i < selectedAgents.length - 1 && agentOutput.trim()) {
                 // 为下一个 Agent 准备上下文
-                const { SystemMessage } = await import('@langchain/core/messages')
                 const nextAgentInfo = selectedAgents[i + 1]
 
                 let contextMessage: any
