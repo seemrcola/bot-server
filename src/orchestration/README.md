@@ -9,8 +9,7 @@ src/orchestration/
 ├── bootstrap.ts          # 启动编排：调用 LLM 工厂、启动 Leader 的 MCP、注册 Leader、注册各子 Agent
 ├── llm.ts                # LLM 工厂：根据环境变量创建并导出 LLM 实例
 ├── manager.ts            # Agent 管理器：统一注册/查询，维护父子关系（Leader → Sub Agents）
-├── router.ts             # 规则路由：显式 agentName / 名称与关键词匹配 / Leader 回退
-├── router.ts             # LLM 精准路由：用 LLM 在候选 Agent 中做判断
+├── router.ts             # LLM智能路由：使用Leader的LLM进行单Agent和多Agent路由决策
 ├── Leader/               # Leader 的 MCP 工具编排
 │   ├── index.ts
 │   ├── system.ts         # 系统信息工具
@@ -38,10 +37,10 @@ src/orchestration/
 ### 路由策略（从高到低优先级）
 
 - 显式路由：请求体有 `agentName` 且存在 → 直接命中
-- LLM 精准路由（优先且唯一判定）：
-- `orchestration/router.ts` 使用 Leader 的 LLM，让模型在“候选子 Agent + Leader”中输出 JSON：
-    `{ target: string; reason: string; confidence: number }`
-  - 当 `target` 合法且 `confidence ≥ 0.5`（默认阈值）时采用
+- LLM 智能路由（支持1-N个Agent）：
+  - 单Agent模式：`selectAgentByLLM()` 返回最佳匹配Agent
+  - 多Agent模式：`selectMultipleAgentsByLLM()` 返回多个匹配Agent并分配任务
+  - 置信度阈值：单Agent默认0.5，多Agent默认0.5
 - 最终回退：Leader 兜底（随后由链式处理决定是否工具调用）
 
 集成点：`services/chat/chat.service.ts` 内执行“显式→LLM→Leader兜底”的路由逻辑，并创建 `AgentChain` 执行。

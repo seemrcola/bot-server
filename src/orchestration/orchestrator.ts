@@ -134,6 +134,7 @@ async function* createUnifiedAgentStream(
         if (!agentInfo)
             continue
 
+        // 根据agentInfo.name获取对应的Agent实例
         const agent = agentManager.getAgent(agentInfo.name)
 
         if (!agent) {

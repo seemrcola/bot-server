@@ -127,9 +127,9 @@ Content-Type: application/json
   - `false`: 只返回最终增强后的答案
   - `true`: 返回详细的ReAct JSON步骤
 - `agentName`（可选）: 显式指定要执行的Agent；不传则走智能路由
-- `maxAgents`（可选，默认5）: 最大Agent数量（支持1-N个Agent）
+- `maxAgents`（可选，默认5）: 最大Agent数量（统一支持1-N个Agent处理）
 - `routingThreshold`（可选，默认0.5）: Agent路由的置信度阈值
-- `forceMultiAgent`（可选，默认false）: 是否强制使用多Agent路由
+- `forceMultiAgent`（可选，默认false）: 是否强制使用多Agent路由模式
 
 **响应：** `text/plain` 流式输出
 
