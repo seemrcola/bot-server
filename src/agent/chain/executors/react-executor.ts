@@ -82,7 +82,7 @@ export class PromptReActExecutor {
                         '- 当 action 为 tool_call 时，必须给出 action_input.tool_name 和 action_input.parameters；',
                         '- 当 action 为 final_answer 时，必须给出 answer；',
                         '- 仅当必要工具已调用且信息充分时，才可输出 final_answer。',
-                        '- 如果用户说"再查一次"、"重新查询"等，应重新调用相关工具而不是直接使用历史结果。',
+                        // '- 如果用户说"再查一次"、"重新查询"等，应重新调用相关工具而不是直接使用历史结果。',
                     ].join('\n'),
                 ),
                 new HumanMessage(
