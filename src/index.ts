@@ -29,13 +29,12 @@ app.use(handleSuccess)
 app.use(handleError);
 
 /**
- * 在 Serverless 环境中：导出 app，由 Vercel 负责监听端口。
- * 在本地/独立进程中：也允许直接 node 运行，这里不再主动 app.listen。
- * 初始化 AgentManager 放在后台执行，冷启动时准备资源。
+ * 初始化 AgentManager 并启动服务器
+ * 在后台执行初始化，避免阻塞应用启动
  */
 (async () => {
     try {
-        // 构建全局就绪 Promise（serverless 冷启动集中初始化）
+        // 构建全局就绪 Promise（集中初始化）
         globals.agentManagerReady = (async () => {
             // 创建编排工具
             const agentManager = await initLeaderOrchestration([])
@@ -49,12 +48,10 @@ app.use(handleError);
     }
 })()
 
-// 本地开发时主动监听端口；在 Vercel 等 Serverless 环境（NODE_ENV=production）由平台托管
-if (process.env['VERCEL'] !== '1') {
-    const port = Number(process.env['PORT']) || config.port
-    app.listen(port, () => {
-        logger.info('[dev] 本地 API 服务器已启动', { 端口: port })
-    })
-}
+// 启动服务器监听端口
+const port = Number(process.env['PORT']) || config.port
+app.listen(port, () => {
+    logger.info('API 服务器已启动', { 端口: port })
+})
 
 export default app

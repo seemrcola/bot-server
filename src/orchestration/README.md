@@ -32,7 +32,7 @@ src/orchestration/
 
 2) 入口 `src/index.ts`
 - 启动时构建全局就绪 Promise：`globals.agentManagerReady = initLeaderOrchestration()`；完成后写入 `globals.agentManager`
-- 入口专注 Web 生命周期；Serverless 环境下不主动 `app.listen`，由平台托管（通过 `VERCEL=1` 判断）
+- 入口专注 Web 生命周期；主动监听端口启动服务器
 
 ### 路由策略（从高到低优先级）
 

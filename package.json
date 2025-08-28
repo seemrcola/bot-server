@@ -17,7 +17,7 @@
         "node": ">=18.0.0"
     },
     "scripts": {
-        "build": "tsc",
+        "build": "tsc && tsc-alias",
         "start": "node dist/index.js",
         "dev": "tsx --watch src/index.ts",
         "clean": "rimraf dist",
@@ -45,6 +45,7 @@
         "@types/node": "^20.19.11",
         "eslint": "^9.33.0",
         "rimraf": "^5.0.10",
+        "tsc-alias": "^1.8.16",
         "tsx": "^4.20.4",
         "typescript": "^5.9.2"
     }
