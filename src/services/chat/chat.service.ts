@@ -36,9 +36,8 @@ class ChatService {
             agentName?: string // 指定Agent名称
             reactVerbose?: boolean // ReAct模式下是否启用详细模式
             temperature?: number // 模型温度
-            routingThreshold?: number // Agent路由的置信度阈值
-            maxAgents?: number // 最大Agent数量（支持1-N个Agent）
-            forceMultiAgent?: boolean // 是否强制使用多Agent路由
+            routingThreshold?: number // Agent路由的置信度阈值（默认值来自ROUTING_CONFIDENCE.MULTI_AGENT_THRESHOLD）
+            maxAgents?: number // 最大Agent数量（默认值来自AGENT_LIMITS.DEFAULT_MAX_AGENTS，支持1-N个Agent）
         },
     ): Promise<AsyncIterable<string>> {
         await ensureBootstrap()
@@ -55,7 +54,6 @@ class ChatService {
             agentName: options.agentName,
             routingThreshold: options.routingThreshold,
             maxAgents: options.maxAgents,
-            forceMultiAgent: options.forceMultiAgent,
         })
     }
 }

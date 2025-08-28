@@ -2,6 +2,11 @@ import type { BaseMessage } from '@langchain/core/messages'
 import type { AgentManager } from './manager.js'
 import { HumanMessage, SystemMessage } from '@langchain/core/messages'
 import { createLogger } from '@/utils/logger.js'
+import {
+    AGENT_LIMITS,
+    ROUTING_CONFIDENCE,
+    ROUTING_ERRORS,
+} from './constants/index.js'
 
 const logger = createLogger('LLMAgentRouter')
 
@@ -17,7 +22,6 @@ export interface LLMMultiRouteResult {
     totalMatches: number // 总匹配数量
 }
 
-export type LLMRouteTuple = [error: string | null, data: LLMRouteResult | null]
 export type LLMMultiRouteTuple = [error: string | null, data: LLMMultiRouteResult | null]
 
 function getLastHumanText(messages: BaseMessage[]): string {
@@ -33,121 +37,14 @@ function getLastHumanText(messages: BaseMessage[]): string {
 }
 
 /**
- * 使用 LLM 进行“精准路由”：在已注册的子 Agent 与 Leader 之间选择最合适的 Agent。
- * @param params - 路由参数
- * @param params.agentManager - AgentManager 实例
- * @param params.messages - 用户消息
- * @param params.threshold - 置信度阈值，默认0.5
- * @returns 路由结果
- * 返回 [error, data]：
- *  - 命中： [null, { name, reason, confidence }]
- *  - 失败： [string, null]，不做任何兜底（由 orchestrator 负责回退）
- */
-export async function selectAgentByLLM(params: {
-    agentManager: AgentManager // AgentManager 实例
-    messages: BaseMessage[] // 用户消息
-    threshold?: number // 置信度阈值，默认0.5
-}): Promise<LLMRouteTuple> {
-    const { agentManager } = params
-    const threshold
-    = typeof params.threshold === 'number'
-        ? params.threshold
-        : 0.5
-
-    const leaderName = agentManager.getLeaderName()
-    const leader = agentManager.getLeader()
-    if (!leader || !leaderName) {
-        const err = 'no_leader: 未找到可用的 Leader Agent'
-        return [err, null]
-    }
-
-    // 收集候选子 Agent 列表
-    const subs = agentManager.listSubAgents(leaderName)
-    const catalog = subs.map(s => ({
-        name: s.name,
-        description: s.description || '',
-        keywords: s.meta?.keywords || [],
-        aliases: s.meta?.aliases || [],
-    }))
-
-    const userText = getLastHumanText(params.messages)
-
-    const sys = new SystemMessage([
-        '你是一个路由器。你的任务：根据用户的最后一条需求文本，在候选 Agent 中选择最合适的一个来处理。',
-        '候选列表包含名称、简介、关键词、别名。',
-        '必须只输出一个 JSON 对象，不要额外文本或代码块。',
-        '{',
-        '  "target": "agent-name 或者 空字符串",',
-        '  "reason": "简述选择原因",',
-        '  "confidence": 0.0 到 1.0 之间的数值',
-        '}',
-        '选择规则：',
-        '- 若用户需求与某个子 Agent 的名称/关键词/别名强相关，则选该子 Agent；',
-        '- 若不确定或均不合适，请将 target 置为空字符串。',
-    ].join('\n'))
-
-    const human = new HumanMessage([
-        '用户最后一条消息：',
-        JSON.stringify(userText),
-        '\n\n候选子 Agent 列表：',
-        JSON.stringify(catalog, null, 2),
-        '\n\n请输出 JSON：',
-    ].join(''))
-
-    let raw: any
-    try {
-        raw = await leader.languageModel.invoke([sys, human])
-    }
-    catch (e) {
-        logger.warn('LLM 路由调用失败', e)
-        return ['invoke_error', null]
-    }
-
-    const text = String((raw as any)?.content ?? '').trim()
-    try {
-        // 解析 JSON 结果
-        const start = text.indexOf('{')
-        const end = text.lastIndexOf('}')
-        const slice = start >= 0 && end >= start ? text.slice(start, end + 1) : text
-        // 解析 JSON 对象
-        const obj = JSON.parse(slice) as { target?: string, reason?: string, confidence?: number }
-        // 提取目标 Agent 名称、原因、置信度
-        const target = (obj.target || '').trim()
-        const reason = typeof obj.reason === 'string' ? obj.reason : ''
-        const confidence = typeof obj.confidence === 'number' ? obj.confidence : 0
-
-        // 置信度检查与存在性检查
-        // 如果target为空，则回退
-        if (!target) {
-            return ['empty_target', null]
-        }
-        // 检查target是否存在
-        // target在subAgents中存在 此时targetExists为true
-        const targetExists = !!agentManager.getAgent(target)
-        // 如果target不存在或者置信度小于阈值，则回退
-        if (!targetExists) {
-            return ['target_not_found', null]
-        }
-        if (confidence < threshold) {
-            return ['low_confidence', null]
-        }
-        // 命中
-        return [null, { name: target, reason: reason || 'llm', confidence }]
-    }
-    catch (e) {
-        logger.warn('LLM 路由结果解析失败', e)
-        return ['parse_error', null]
-    }
-}
-
-/**
  * 使用 LLM 进行多 Agent 路由：分析用户需求，返回多个可能匹配的 Agent
+ * 注意：单Agent只是多Agent的特殊情况（N=1），统一使用此函数进行路由
  * @param params - 路由参数
  * @param params.agentManager - AgentManager 实例
  * @param params.messages - 用户消息
- * @param params.threshold - 置信度阈值，默认0.3（比单agent路由稍低）
- * @param params.maxAgents - 最大返回agent数量，默认3
- * @returns 多agent路由结果
+ * @param params.threshold - 置信度阈值，默认值来自 ROUTING_CONFIDENCE.MULTI_AGENT_THRESHOLD
+ * @param params.maxAgents - 最大返回agent数量，默认值来自 AGENT_LIMITS.MULTI_ROUTE_MAX_AGENTS
+ * @returns 多agent路由结果（可能是0个、1个或多个Agent）
  */
 export async function selectMultipleAgentsByLLM(params: {
     agentManager: AgentManager
@@ -156,13 +53,13 @@ export async function selectMultipleAgentsByLLM(params: {
     maxAgents?: number
 }): Promise<LLMMultiRouteTuple> {
     const { agentManager } = params
-    const threshold = typeof params.threshold === 'number' ? params.threshold : 0.3
-    const maxAgents = typeof params.maxAgents === 'number' ? params.maxAgents : 3
+    const threshold = typeof params.threshold === 'number' ? params.threshold : ROUTING_CONFIDENCE.MULTI_AGENT_THRESHOLD
+    const maxAgents = typeof params.maxAgents === 'number' ? params.maxAgents : AGENT_LIMITS.MULTI_ROUTE_MAX_AGENTS
 
     const leaderName = agentManager.getLeaderName()
     const leader = agentManager.getLeader()
     if (!leader || !leaderName) {
-        const err = 'no_leader: 未找到可用的 Leader Agent'
+        const err = `${ROUTING_ERRORS.NO_LEADER}: 未找到可用的 Leader Agent`
         return [err, null]
     }
 
@@ -179,17 +76,20 @@ export async function selectMultipleAgentsByLLM(params: {
 
     const sys = new SystemMessage([
         '你是一个智能任务分解器和路由器。你的职责：',
-        '1. 分析用户的复合需求，识别其中包含的不同类型子任务',
-        '2. 为每个子任务选择最合适的专业Agent',
+        '1. 分析用户的需求，判断是否需要专业Agent处理',
+        '2. 如果需要，为每个子任务选择最合适的专业Agent',
         '3. 为每个Agent指定明确的任务范围，避免重复工作',
         '',
         '重要原则：',
+        '- 对于通用问题（如问候、闲聊、基本问答），必须返回空数组 []',
+        '- 只有当用户明确需要特定领域的专业服务时，才选择相应的Agent',
         '- 每个Agent只处理自己专长领域的任务',
-        '- 不同Agent不应重复执行相同类型的工作',
+        '- 不同的Agent不应重复执行相同类型的工作',
         '- 按逻辑顺序安排Agent执行',
-        '- 只有真正需要多个Agent时才返回多个',
         '',
         '输出格式（JSON数组）：',
+        '对于通用问题：[]',
+        '对于专业需求：',
         '[',
         '  {',
         '    "target": "agent-name",',
@@ -206,9 +106,10 @@ export async function selectMultipleAgentsByLLM(params: {
         '\n\n可用的专业 Agent 列表：',
         JSON.stringify(catalog, null, 2),
         '\n\n请分析用户需求：',
-        '1. 识别其中包含的不同类型子任务',
-        '2. 为每个子任务选择最合适的Agent',
-        '3. 明确每个Agent的具体职责范围',
+        '1. 这是否为通用问题（问候、闲聊等）？如果是，返回 []',
+        '2. 如果需要专业服务，识别其中包含的不同类型子任务',
+        '3. 为每个子任务选择最合适的Agent',
+        '4. 明确每个Agent的具体职责范围',
         '\n返回JSON数组：',
     ].join(''))
 
@@ -218,7 +119,7 @@ export async function selectMultipleAgentsByLLM(params: {
     }
     catch (e) {
         logger.warn('LLM 多路由调用失败', e)
-        return ['invoke_error', null]
+        return [ROUTING_ERRORS.INVOKE_ERROR, null]
     }
 
     const text = String((raw as any)?.content ?? '').trim()
@@ -237,7 +138,7 @@ export async function selectMultipleAgentsByLLM(params: {
         }>
 
         if (!Array.isArray(results)) {
-            return ['invalid_format: 期望返回数组格式', null]
+            return [`${ROUTING_ERRORS.INVALID_FORMAT}: 期望返回数组格式`, null]
         }
 
         // 处理和验证结果
@@ -285,10 +186,7 @@ export async function selectMultipleAgentsByLLM(params: {
         // 限制返回数量
         const finalAgents = validAgents.slice(0, maxAgents)
 
-        if (finalAgents.length === 0) {
-            return ['no_valid_agents', null]
-        }
-
+        // 允许返回空数组，让调用方决定如何处理（比如回退到Leader）
         return [null, {
             agents: finalAgents,
             totalMatches: finalAgents.length,
@@ -296,6 +194,6 @@ export async function selectMultipleAgentsByLLM(params: {
     }
     catch (e) {
         logger.warn('LLM 多路由结果解析失败', e)
-        return ['parse_error', null]
+        return [ROUTING_ERRORS.PARSE_ERROR, null]
     }
 }

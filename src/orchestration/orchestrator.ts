@@ -3,7 +3,12 @@ import { HumanMessage, SystemMessage } from '@langchain/core/messages'
 import { AgentChain } from '@/agent/index.js'
 import { globals } from '@/globals.js'
 import { createLogger } from '@/utils/logger.js'
-import { selectAgentByLLM, selectMultipleAgentsByLLM } from './router.js'
+import {
+    AGENT_LIMITS,
+    EXECUTION_CONFIG,
+    ROUTING_CONFIDENCE,
+} from './constants/index.js'
+import { selectMultipleAgentsByLLM } from './router.js'
 
 function getLastHumanText(messages: BaseMessage[]): string {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -20,18 +25,18 @@ function getLastHumanText(messages: BaseMessage[]): string {
 const logger = createLogger('OrchestrationRunner')
 
 export interface OrchestratorOptions {
-    maxSteps?: number | undefined // 最大执行步数，默认8
-    reactVerbose?: boolean | undefined // 是否输出详细ReAct步骤
+    maxSteps?: number | undefined // 最大执行步数，默认值来自 EXECUTION_CONFIG.DEFAULT_MAX_STEPS
+    reactVerbose?: boolean | undefined // 是否输出详细ReAct步骤，默认值来自 EXECUTION_CONFIG.DEFAULT_REACT_VERBOSE
     temperature?: number | undefined // 采样温度
-    agentName?: string | undefined // 显式指定要执行的 Agent；通常不指定，由系统进行 LLM 路由
-    routingThreshold?: number | undefined // Agent路由的置信度阈值，默认0.5
-    maxAgents?: number | undefined // 最大Agent数量，默认5（支持1-N个Agent）
-    forceMultiAgent?: boolean | undefined // 是否强制使用多Agent路由，默认false
+    agentName?: string | undefined // 显式指定要执行的 Agent；通常不指定，由系统进行智能路由
+    routingThreshold?: number | undefined // Agent路由的置信度阈值，默认值来自 ROUTING_CONFIDENCE.MULTI_AGENT_THRESHOLD
+    maxAgents?: number | undefined // 最大Agent数量，默认值来自 AGENT_LIMITS.DEFAULT_MAX_AGENTS
 }
 
 /**
- * 统一的Agent编排执行入口（支持1-N个Agent的统一处理）
+ * 统一的Agent编排执行入口（统一多Agent模式）
  * 执行优先级：显式指定 → 智能路由选择 → Leader兜底
+ * 注意：单Agent只是多Agent的特殊情况（N=1），本质上只有多Agent模式
  * @param messages - 聊天消息
  * @param options - 聊天选项
  * @returns 流式聊天响应
@@ -52,53 +57,50 @@ export async function runWithLeader(
         const selectedAgents = [{
             name: explicitAgentName,
             reason: '用户显式指定',
-            confidence: 1.0,
+            confidence: ROUTING_CONFIDENCE.EXPLICIT_CONFIDENCE,
         }]
         logger.info(`显式指定模式：使用 Agent: ${explicitAgentName}`)
         return createUnifiedAgentStream(messages, selectedAgents, options)
     }
 
-    // 2. 智能路由选择Agent（支持1-N个）
-    const routingThreshold = options.routingThreshold ?? 0.5
-    const maxAgents = options.maxAgents ?? 5
-    const forceMultiAgent = options.forceMultiAgent ?? false
+    // 2. 智能多Agent路由（统一模式）
+    const routingThreshold = options.routingThreshold ?? ROUTING_CONFIDENCE.MULTI_AGENT_THRESHOLD
+    const maxAgents = options.maxAgents ?? AGENT_LIMITS.DEFAULT_MAX_AGENTS
 
-    // 尝试多Agent路由（如果配置允许或强制要求）
-    if (forceMultiAgent || maxAgents > 1) {
-        const [multiErr, multiData] = await selectMultipleAgentsByLLM({
-            agentManager,
-            messages,
-            threshold: routingThreshold,
-            maxAgents,
-        })
-
-        if (!multiErr && multiData && multiData.agents.length > 0) {
-            logger.info(`智能多Agent路由：选择了 ${multiData.agents.length} 个Agent: ${multiData.agents.map(a => a.name).join(' -> ')}`)
-            return createUnifiedAgentStream(messages, multiData.agents, options)
-        }
-
-        logger.warn(`多Agent路由失败（${multiErr}），回退到单Agent路由`)
-    }
-
-    // 3. 单Agent路由
-    const [singleErr, singleData] = await selectAgentByLLM({
+    const [routingErr, routingData] = await selectMultipleAgentsByLLM({
         agentManager,
         messages,
         threshold: routingThreshold,
+        maxAgents,
     })
 
-    if (!singleErr && singleData) {
-        const selectedAgents = [singleData]
-        logger.info(`智能单Agent路由：选择 Agent: ${singleData.name}（置信度: ${(singleData.confidence * 100).toFixed(1)}%）`)
-        return createUnifiedAgentStream(messages, selectedAgents, options)
+    if (!routingErr && routingData) {
+        // 情况1：返回多个Agent（N > 1）- 真正的多Agent协同
+        if (routingData.agents.length > 1) {
+            logger.info(`智能多Agent路由：选择了 ${routingData.agents.length} 个Agent: ${routingData.agents.map(a => a.name).join(' -> ')}`)
+            return createUnifiedAgentStream(messages, routingData.agents, options)
+        }
+        // 情况2：返回单个Agent（N = 1）- 传统的"单Agent"模式
+        else if (routingData.agents.length === 1) {
+            const selectedAgent = routingData.agents[0]!
+            logger.info(`智能单Agent路由：选择 Agent: ${selectedAgent.name}（置信度: ${(selectedAgent.confidence * 100).toFixed(1)}%）`)
+            return createUnifiedAgentStream(messages, routingData.agents, options)
+        }
+        // 情况3：返回空数组（N = 0）- 通用问题，无需专业Agent
+        else {
+            logger.info('智能路由返回空数组，认为是通用问题，使用Leader处理')
+        }
+    }
+    else {
+        logger.warn(`智能路由失败（${routingErr}），回退到Leader兜底`)
     }
 
-    // 4. Leader兜底（保证总是有响应）
+    // 3. Leader兜底（保证总是有响应）
     const leaderName = agentManager.getLeaderName()!
     const selectedAgents = [{
         name: leaderName,
-        reason: `兜底处理（路由失败: ${singleErr}）`,
-        confidence: 1.0,
+        reason: '兜底处理（无合适的专业Agent）',
+        confidence: ROUTING_CONFIDENCE.LEADER_FALLBACK_CONFIDENCE,
     }]
     logger.info(`Leader兜底模式：使用 Leader Agent: ${leaderName}`)
     return createUnifiedAgentStream(messages, selectedAgents, options)
@@ -113,7 +115,7 @@ export async function runWithMultipleAgents(
     options: OrchestratorOptions = {},
 ): Promise<AsyncIterable<string>> {
     logger.warn('runWithMultipleAgents 已废弃，建议直接使用 runWithLeader')
-    return runWithLeader(messages, { ...options, forceMultiAgent: true })
+    return runWithLeader(messages, options)
 }
 
 /**
@@ -162,8 +164,8 @@ async function* createUnifiedAgentStream(
             // 为当前 Agent 创建链式处理
             const chain = new AgentChain(agent)
             const chainOptions: any = {
-                maxSteps: options.maxSteps ?? 8,
-                reactVerbose: options.reactVerbose ?? false,
+                maxSteps: options.maxSteps ?? EXECUTION_CONFIG.DEFAULT_MAX_STEPS,
+                reactVerbose: options.reactVerbose ?? EXECUTION_CONFIG.DEFAULT_REACT_VERBOSE,
             }
             if (typeof options.temperature === 'number') {
                 chainOptions.temperature = options.temperature

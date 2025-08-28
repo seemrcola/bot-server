@@ -18,4 +18,4 @@ export { AgentManager } from './manager.js'
 export { runWithLeader, runWithMultipleAgents } from './orchestrator.js'
 
 // LLM 路由（如需单独调用）
-export { selectAgentByLLM, selectMultipleAgentsByLLM } from './router.js'
+export { selectMultipleAgentsByLLM } from './router.js'
