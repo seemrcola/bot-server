@@ -6,10 +6,8 @@
 // 日志工具
 export {
     createLogger,
-    createMCPLogger,
     type Logger,
     LogLevel,
-    type MCPLogger,
     setGlobalLogger,
 } from './logger.js'
 

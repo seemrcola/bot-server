@@ -13,7 +13,7 @@ const defaultSystemPrompt = `
 你是一个乐于助人的 AI 助手。回复内容请使用 Markdown 格式。`
 
 /**
- * 初始化 Leader 模块
+ * 初始化 Leader 编排器
  * @param externalMCPServers
  * @returns
  * 这个函数初始化的执行顺序是
@@ -27,7 +27,6 @@ const defaultSystemPrompt = `
  *
  * 之所以要先启动MCP服务，是因为 Agent 模块需要传入 MCP 服务的 URL 列表
  */
-
 export async function initLeaderOrchestration(externalMCPServers: MCPServerDescription[]): Promise<AgentManager> {
     const systemPrompt = defaultSystemPrompt
 

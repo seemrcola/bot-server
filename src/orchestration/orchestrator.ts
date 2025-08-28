@@ -107,18 +107,6 @@ export async function runWithLeader(
 }
 
 /**
- * @deprecated 已废弃，请使用统一的 runWithLeader 函数
- * 为了向后兼容保留此函数，内部调用 runWithLeader
- */
-export async function runWithMultipleAgents(
-    messages: BaseMessage[],
-    options: OrchestratorOptions = {},
-): Promise<AsyncIterable<string>> {
-    logger.warn('runWithMultipleAgents 已废弃，建议直接使用 runWithLeader')
-    return runWithLeader(messages, options)
-}
-
-/**
  * 统一的Agent流式输出生成器（支持1-N个Agent）
  * 当只有1个Agent时，简化输出；多个Agent时显示详细的切换信息
  */

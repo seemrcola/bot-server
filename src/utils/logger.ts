@@ -51,7 +51,3 @@ export function createLogger(moduleName: string): Logger {
         },
     }
 }
-
-// 为了兼容旧代码，保留 createMCPLogger 和 MCPLogger 类型
-export const createMCPLogger = createLogger
-export type MCPLogger = Logger
