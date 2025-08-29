@@ -1,5 +1,5 @@
 {
-    "name": "AI Agent Server Template",
+    "name": "AIAgentServerTemplate",
     "type": "module",
     "version": "1.0.0",
     "description": "AI Agent; Agent; Langchain; Chatbot; MCP",
@@ -33,11 +33,14 @@
         "@langchain/deepseek": "^0.1.0",
         "@langchain/openai": "^0.5.18",
         "@modelcontextprotocol/sdk": "^1.17.3",
+        "@types/multer": "^2.0.0",
         "cors": "^2.8.5",
         "dotenv": "^16.6.1",
         "express": "^4.21.2",
         "get-port": "^7.1.0",
         "langchain": "^0.3.31",
+        "multer": "^2.0.2",
+        "sharp": "^0.34.3",
         "zod": "^3.25.7"
     },
     "devDependencies": {
