@@ -5,11 +5,95 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Bot Server 对话测试</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Markdown渲染相关样式 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    
     <style>
       .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
       .scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 9999px; }
       .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-      .prose pre { white-space: pre-wrap; }
+      
+      /* Markdown渲染样式 */
+      .prose { max-width: none; }
+      .prose pre { 
+        white-space: pre-wrap; 
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        padding: 1rem;
+        overflow-x: auto;
+      }
+      .prose code {
+        background-color: #f1f3f4;
+        padding: 0.125rem 0.25rem;
+        border-radius: 3px;
+        font-size: 0.875em;
+      }
+      .prose pre code {
+        background-color: transparent;
+        padding: 0;
+      }
+      .prose blockquote {
+        border-left: 4px solid #e9ecef;
+        padding-left: 1rem;
+        margin: 1rem 0;
+        color: #6c757d;
+      }
+      .prose table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 1rem 0;
+      }
+      .prose th, .prose td {
+        border: 1px solid #e9ecef;
+        padding: 0.5rem;
+        text-align: left;
+      }
+      .prose th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+      }
+      .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+        margin-top: 1.5rem;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+      }
+      .prose h1 { font-size: 1.5rem; }
+      .prose h2 { font-size: 1.25rem; }
+      .prose h3 { font-size: 1.125rem; }
+      .prose p { margin: 0.5rem 0; }
+      .prose ul, .prose ol { margin: 0.5rem 0; padding-left: 1.5rem; }
+      .prose li { margin: 0.25rem 0; }
+      
+      /* Mermaid图表样式 */
+      .mermaid {
+        text-align: center;
+        margin: 1rem 0;
+      }
+      
+      /* 数学公式样式 */
+      .katex {
+        font-size: 1em;
+      }
+      
+      /* 加载状态样式 */
+      .loading-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-right: 8px;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
     </style>
   </head>
   <body class="min-h-screen bg-slate-50">
@@ -89,10 +173,219 @@
     <template id="tpl-ai">
       <div class="flex items-start gap-3">
         <div class="shrink-0 h-8 w-8 rounded-full bg-white ring-1 ring-slate-300 grid place-items-center text-slate-900">AI</div>
-        <div class="bg-white border border-slate-200 rounded-2xl px-4 py-2 max-w-[80%] text-slate-900"></div>
+        <div class="bg-white border border-slate-200 rounded-2xl px-4 py-2 max-w-[80%] text-slate-900 prose"></div>
       </div>
     </template>
 
+    <!-- Markdown渲染相关库 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    
+    <!-- 备用CDN脚本 -->
+    <script>
+      // 库加载状态跟踪
+      const libraryStatus = {
+        marked: false,
+        highlight: false,
+        katex: false,
+        mermaid: false
+      };
+      
+      // 备用CDN源
+      const backupCDNs = {
+        marked: 'https://unpkg.com/marked@12.0.0/marked.min.js',
+        highlight: 'https://unpkg.com/highlight.js@11.9.0/highlight.min.js',
+        katex: 'https://unpkg.com/katex@0.16.9/dist/katex.min.js',
+        mermaid: 'https://unpkg.com/mermaid@10.6.1/dist/mermaid.min.js'
+      };
+      
+      // 动态加载备用CDN
+      function loadBackupScript(name, url) {
+        return new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = url;
+          script.onload = () => {
+            libraryStatus[name] = true;
+            console.log(`[Markdown] ${name} 备用CDN加载成功`);
+            resolve();
+          };
+          script.onerror = () => {
+            console.error(`[Markdown] ${name} 备用CDN加载失败`);
+            reject();
+          };
+          document.head.appendChild(script);
+        });
+      }
+      
+      // 检查库加载状态
+      function checkLibraries() {
+        libraryStatus.marked = typeof marked !== 'undefined';
+        libraryStatus.highlight = typeof hljs !== 'undefined';
+        libraryStatus.katex = typeof katex !== 'undefined';
+        libraryStatus.mermaid = typeof mermaid !== 'undefined';
+        
+        console.log('[Markdown] 库加载状态:', libraryStatus);
+        
+        // 尝试加载失败的库
+        const promises = [];
+        Object.keys(libraryStatus).forEach(name => {
+          if (!libraryStatus[name] && backupCDNs[name]) {
+            promises.push(loadBackupScript(name, backupCDNs[name]));
+          }
+        });
+        
+        return Promise.allSettled(promises);
+      }
+      
+      // 初始化Markdown渲染器
+      let markdownRenderer = null;
+      
+      function initMarkdownRenderer() {
+        if (typeof marked === 'undefined') {
+          console.warn('[Markdown] marked库未加载，使用纯文本显示');
+          return null;
+        }
+        
+        try {
+          // 配置highlight.js
+          if (typeof hljs !== 'undefined') {
+            hljs.configure({
+              languages: ['javascript', 'typescript', 'python', 'json', 'bash', 'html', 'css', 'sql']
+            });
+          }
+          
+          // 配置marked
+          const renderer = new marked.Renderer();
+          
+          // 自定义代码块渲染
+          renderer.code = function(code, language) {
+            if (typeof hljs !== 'undefined' && language) {
+              try {
+                const highlighted = hljs.highlight(code, { language }).value;
+                return `<pre><code class="hljs language-${language}">${highlighted}</code></pre>`;
+              } catch (e) {
+                console.warn(`[Markdown] 代码高亮失败:`, e);
+              }
+            }
+            return `<pre><code>${marked.parseInline(code)}</code></pre>`;
+          };
+          
+          // 自定义Mermaid图表渲染
+          renderer.code = function(code, language) {
+            if (language === 'mermaid') {
+              const id = 'mermaid-' + Math.random().toString(36).substr(2, 9);
+              setTimeout(() => {
+                if (typeof mermaid !== 'undefined') {
+                  try {
+                    mermaid.render(id, code).then(({svg}) => {
+                      const element = document.getElementById(id);
+                      if (element) {
+                        element.innerHTML = svg;
+                      }
+                    }).catch(e => {
+                      console.warn('[Markdown] Mermaid渲染失败:', e);
+                      const element = document.getElementById(id);
+                      if (element) {
+                        element.innerHTML = `<pre><code>${code}</code></pre>`;
+                      }
+                    });
+                  } catch (e) {
+                    console.warn('[Markdown] Mermaid初始化失败:', e);
+                  }
+                }
+              }, 100);
+              return `<div id="${id}" class="mermaid">${code}</div>`;
+            }
+            
+            // 普通代码高亮
+            if (typeof hljs !== 'undefined' && language) {
+              try {
+                const highlighted = hljs.highlight(code, { language }).value;
+                return `<pre><code class="hljs language-${language}">${highlighted}</code></pre>`;
+              } catch (e) {
+                console.warn(`[Markdown] 代码高亮失败:`, e);
+              }
+            }
+            return `<pre><code>${marked.parseInline(code)}</code></pre>`;
+          };
+          
+          // 配置marked选项
+          marked.setOptions({
+            renderer: renderer,
+            gfm: true,
+            breaks: true,
+            sanitize: false,
+            smartypants: true
+          });
+          
+          // 初始化Mermaid
+          if (typeof mermaid !== 'undefined') {
+            mermaid.initialize({
+              startOnLoad: false,
+              theme: 'default',
+              securityLevel: 'loose'
+            });
+          }
+          
+          console.log('[Markdown] 渲染器初始化成功');
+          return marked;
+        } catch (e) {
+          console.error('[Markdown] 渲染器初始化失败:', e);
+          return null;
+        }
+      }
+      
+      // 渲染Markdown内容
+      function renderMarkdown(content) {
+        if (!markdownRenderer) {
+          return content; // 降级到纯文本
+        }
+        
+        try {
+          let html = markdownRenderer.parse(content);
+          
+          // 处理KaTeX数学公式
+          if (typeof katex !== 'undefined') {
+            // 行内公式 $...$
+            html = html.replace(/\$([^$]+)\$/g, (match, formula) => {
+              try {
+                return katex.renderToString(formula, { displayMode: false });
+              } catch (e) {
+                console.warn('[Markdown] KaTeX行内公式渲染失败:', e);
+                return match;
+              }
+            });
+            
+            // 块级公式 $$...$$
+            html = html.replace(/\$\$([^$]+)\$\$/g, (match, formula) => {
+              try {
+                return katex.renderToString(formula, { displayMode: true });
+              } catch (e) {
+                console.warn('[Markdown] KaTeX块级公式渲染失败:', e);
+                return match;
+              }
+            });
+          }
+          
+          return html;
+        } catch (e) {
+          console.error('[Markdown] 渲染失败:', e);
+          return content; // 降级到纯文本
+        }
+      }
+      
+      // 等待库加载完成后初始化
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          checkLibraries().then(() => {
+            markdownRenderer = initMarkdownRenderer();
+          });
+        }, 500);
+      });
+    </script>
+    
     <script>
       const $ = (id) => document.getElementById(id)
       const baseUrl = $('baseUrl')
@@ -218,7 +511,14 @@
 
             // 2) 增强后的 Markdown 文本（拼接显示）
             aiResponse += line // 积累AI回复
-            aiBox.textContent += line
+            
+            // 使用Markdown渲染
+            if (markdownRenderer) {
+              aiBox.innerHTML = renderMarkdown(aiResponse)
+            } else {
+              aiBox.textContent = aiResponse
+            }
+            
             chatList.scrollTop = chatList.scrollHeight
           }
         }
@@ -253,7 +553,7 @@
         btn.addEventListener('click', () => {
           const t = btn.getAttribute('data-preset')
           if (t === 'hello') userInput.value = '你好，请用三句话介绍你自己'
-          if (t === 'tool') userInput.value = '获取当前系统信息与北京天气，并整理成要点列表'
+          if (t === 'tool') userInput.value = '帮我查询antfe的成员信息'
           if (t === 'context') userInput.value = '请先帮我查一下系统信息'
         })
       })
