@@ -1,4 +1,4 @@
-# Bot Server
+# Bot Server 案例
 
 一个基于链式处理架构的智能Agent服务端项目，实现了"Agent + MCP（Model Context Protocol）+ LangChain"的完整解决方案。
 
@@ -8,9 +8,11 @@
 - **ReAct决策循环**：支持多次 `tool_call` → `observation` → `final_answer`
 - **统一Agent编排**：支持1-N个Agent的统一处理，不再区分单多Agent模式
 - **MCP外部工具**：自动发现和调用外部MCP工具服务
+- **智能网页抓取**：集成完整的网页内容抓取与LLM驱动的智能格式化
 - **流式输出**：完整的HTTP文本流输出
 - **执行策略**：统一为 Prompt 模式（已移除 Function 模式）
 - **响应增强**：自动优化和格式化ReAct结果
+- **自管理工具注册**：每个MCP工具管理自己的注册信息，符合单一职责原则
 
 ## 🏗️ 架构概览
 
@@ -29,6 +31,20 @@ Bot Server/
 │   │   ├── executors/        # 执行器（底层实现）
 │   │   ├── mcp/              # MCP协议支持
 │   │   └── manager.ts        # Agent管理器
+│   ├── orchestration/        # Agent编排层
+│   │   ├── Dashboard/        # Dashboard子Agent集合
+│   │   │   ├── WebHelper/    # 网页抓取助手Agent
+│   │   │   │   └── webCatcher/  # 智能网页抓取工具集
+│   │   │   │       ├── urlValidator     # URL验证工具
+│   │   │   │       ├── htmlFetcher      # HTML获取工具
+│   │   │   │       ├── contentParser    # 内容解析工具
+│   │   │   │       └── resultFormatter  # LLM驱动格式化工具
+│   │   │   └── Antfe/        # Antfe团队助手Agent
+│   │   ├── Leader/           # Leader工具集
+│   │   ├── bootstrap.ts      # 启动编排
+│   │   ├── llm.ts           # LLM工厂
+│   │   ├── manager.ts       # Agent管理器
+│   │   └── router.ts        # 智能路由
 │   ├── controllers/          # 控制器层
 │   ├── services/             # 服务层
 │   ├── routes/               # 路由层
@@ -145,13 +161,21 @@ curl -N -X POST http://localhost:3000/api/chat/stream \
     "maxAgents": 3
   }'
 
-# 智能多Agent路由
+# 智能网页抓取示例
 curl -N -X POST http://localhost:3000/api/chat/stream \
   -H 'Content-Type: application/json' \
   -d '{
-    "messages":[{"type":"human","content":"查询系统状态并做数学计算"}],
-    "maxAgents": 2,
-    "routingThreshold": 0.3
+    "messages":[{"type":"human","content":"请帮我抓取并分析 https://example.com 的内容，用Markdown格式输出"}],
+    "agentName": "web-helper-agent",
+    "reactVerbose": true
+  }'
+
+# 多格式输出支持
+curl -N -X POST http://localhost:3000/api/chat/stream \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "messages":[{"type":"human","content":"请抓取网页内容并生成JSON格式的结构化数据"}],
+    "agentName": "web-helper-agent"
   }'
 ```
 
@@ -207,6 +231,7 @@ AgentChain.runChain() × N
 3. 支持多Agent协同处理复杂任务 [✅ 已实现统一多Agent架构]
 4. 支持持久化对话历史和上下文管理
 5. 添加更多专业领域的Agent（如代码生成、数据分析等）
+6. 智能网页抓取和LLM驱动格式化工具
 
 ## 📚 相关文档
 

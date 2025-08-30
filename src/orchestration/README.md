@@ -17,6 +17,16 @@ src/orchestration/
 │   └── twoSum.ts         # 两数求和
 └── Dashboard/            # Dashboard 子 Agent 集合（按域划分）
     ├── index.ts          # 集中导出需要注册的子 Agent（推荐方式）
+    ├── WebHelper/        # 网页助手子Agent（新增）
+    │   ├── index.ts      # WebHelper Agent 元数据和启动器
+    │   └── webCatcher/   # 智能网页抓取工具集
+    │       ├── index.ts          # 自动化工具注册
+    │       ├── types.ts          # 类型定义
+    │       └── tools/            # 自管理MCP工具
+    │           ├── url-validator-tool.ts    # URL验证工具
+    │           ├── html-fetcher-tool.ts     # HTML获取工具
+    │           ├── content-parser-tool.ts   # 内容解析工具
+    │           └── result-formatter-tool.ts # LLM驱动格式化工具
     └── Antfe/
         ├── index.ts      # 子 Agent 元数据：name、servers、starter、agentDescription
         └── member.ts     # 子 Agent MCP 服务实现
@@ -45,14 +55,57 @@ src/orchestration/
 
 集成点：`services/chat/chat.service.ts` 内执行“显式→LLM→Leader兜底”的路由逻辑，并创建 `AgentChain` 执行。
 
-### 子 Agent 注册与元信息（keywords/aliases）
+### MCP工具自管理注册机制
+
+为了符合单一职责原则，每个MCP工具现在管理自己的注册信息：
+
+```typescript
+// 每个工具类实现自管理注册
+export class SomeTool {
+    /**
+     * 获取工具定义信息
+     */
+    static getToolDefinition() {
+        return {
+            name: 'toolName',
+            schema: {
+                title: '工具标题',
+                description: '工具描述',
+                inputSchema: SomeSchema.shape,
+            },
+            handler: this.handleToolCall.bind(this),
+        }
+    }
+
+    /**
+     * 工具调用处理器
+     */
+    static async handleToolCall(params: any) {
+        // 具体实现
+    }
+}
+```
+
+这种设计的优势：
+- **单一职责**：工具自己管理注册信息
+- **模块化**：每个工具都是独立的模块
+- **类型安全**：编译时检查工具定义
+- **易于维护**：修改工具时只需修改对应文件
+
+### LLM驱动的智能格式化
+
+`resultFormatter`工具已重构为LLM驱动的智能格式化工具：
+- **真实LLM集成**：使用项目配置的LLM实例进行格式化
+- **专业提示词**：针对不同格式（Markdown、JSON、摘要、纯文本）优化的提示词
+- **智能容错**：LLM失败时自动降级到备用格式化方案
+- **性能监控**：详细记录格式化耗时和内容长度变化
 
 `orchestration/manager.ts` 支持为 Agent 注册可选 `meta`：
 - `keywords`: 关键词列表（便于规则回退命中）
 - `aliases`: 别名列表（便于规则回退命中）
 
 注册 API：
-```ts
+```
 registerLeader(name: string, agent: Agent, description: string, meta?: { keywords?: string[]; aliases?: string[] })
 registerSubAgent(parentName: string, name: string, agent: Agent, description?: string, meta?: { keywords?: string[]; aliases?: string[] })
 ```
@@ -92,15 +145,25 @@ export const dashboards = [YourAgent]
 
 > 说明：Orchestration 层通过 `llm.ts` 模块统一创建和管理 LLM 实例，应用的其他部分（如 `bootstrap.ts`）只管调用，无需关心模型厂商与参数细节，保证了解耦与可替换性。
 
-### 请求示例（无需显式指定 Agent）
+集成点：`services/chat/chat.service.ts` 内执行"显式→LLM→Leader兜底"的路由逻辑，并创建 `AgentChain` 执行。
+
+### 智能网页抓取示例
 
 ```bash
+# 使用WebHelper Agent进行网页抓取和智能格式化
 curl -N -X POST http://localhost:3000/api/chat/stream \
   -H 'Content-Type: application/json' \
   -d '{
-    "messages":[{"type":"human","content":"请介绍一下 Antfe 团队成员"}],
+    "messages":[{"type":"human","content":"请抓取 https://example.com 的内容并用Markdown格式输出"}],
+    "agentName": "web-helper-agent",
     "reactVerbose": true
   }'
-```
 
-路由决策将自动执行：显式 → LLM → 规则 → Leader 兜底。
+# 支持多种输出格式
+curl -N -X POST http://localhost:3000/api/chat/stream \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "messages":[{"type":"human","content":"请生成网页内容的JSON结构化数据"}],
+    "agentName": "web-helper-agent"
+  }'
+```
