@@ -19,41 +19,41 @@
 ```
 Bot Server/
 ├── src/
-│   ├── agent/                 # Agent核心模块
-│   │   ├── chain/            # 链式处理（新增）
-│   │   │   ├── agent-chain.ts    # 主链式处理器
-│   │   │   ├── types.ts          # 类型定义
-│   │   │   └── steps/            # 处理步骤
+│   ├── agent/                              # Agent核心模块
+│   │   ├── chain/                          # 链式处理（新增）
+│   │   │   ├── agent-chain.ts              # 主链式处理器
+│   │   │   ├── types.ts                    # 类型定义
+│   │   │   └── steps/                      # 处理步骤
 │   │   │       ├── intent-analysis.ts      # 意图分析
 │   │   │       ├── direct-llm.ts           # 直接LLM回答
 │   │   │       ├── react-execution.ts      # ReAct执行
 │   │   │       └── response-enhancement.ts # 响应增强
-│   │   ├── executors/        # 执行器（底层实现）
-│   │   ├── mcp/              # MCP协议支持
-│   │   └── manager.ts        # Agent管理器
-│   ├── orchestration/        # Agent编排层
-│   │   ├── Dashboard/        # Dashboard子Agent集合
-│   │   │   ├── WebHelper/    # 网页抓取助手Agent
-│   │   │   │   └── webCatcher/  # 智能网页抓取工具集
-│   │   │   │       ├── urlValidator     # URL验证工具
-│   │   │   │       ├── htmlFetcher      # HTML获取工具
-│   │   │   │       ├── contentParser    # 内容解析工具
-│   │   │   │       └── resultFormatter  # LLM驱动格式化工具
-│   │   │   └── Antfe/        # Antfe团队助手Agent
-│   │   ├── Leader/           # Leader工具集
-│   │   ├── bootstrap.ts      # 启动编排
-│   │   ├── llm.ts           # LLM工厂
-│   │   ├── manager.ts       # Agent管理器
-│   │   └── router.ts        # 智能路由
-│   ├── controllers/          # 控制器层
-│   ├── services/             # 服务层
-│   ├── routes/               # 路由层
-│   ├── middlewares/          # 中间件
-│   ├── utils/                # 通用工具
-│   ├── external/             # 外部MCP服务示例
-│   ├── config/               # 配置管理
-│   └── prompts/              # 提示词管理
-└── docs/                     # 架构文档
+│   │   ├── executors/                      # 执行器（底层实现）
+│   │   ├── mcp/                            # MCP协议支持
+│   │   └── manager.ts                      # Agent管理器
+│   ├── orchestration/                      # Agent编排层
+│   │   ├── Dashboard/                      # Dashboard子Agent集合
+│   │   │   ├── WebHelper/                  # 网页抓取助手Agent
+│   │   │   │   └── webCatcher/             # 智能网页抓取工具集
+│   │   │   │       ├── urlValidator        # URL验证工具
+│   │   │   │       ├── htmlFetcher         # HTML获取工具
+│   │   │   │       ├── contentParser       # 内容解析工具
+│   │   │   │       └── resultFormatter     # LLM驱动格式化工具
+│   │   │   └── Antfe/                      # Antfe团队助手Agent
+│   │   ├── Leader/                         # Leader工具集
+│   │   ├── bootstrap.ts                    # 启动编排
+│   │   ├── llm.ts                          # LLM工厂
+│   │   ├── manager.ts                      # Agent管理器
+│   │   └── router.ts                       # 智能路由
+│   ├── controllers/                        # 控制器层
+│   ├── services/                           # 服务层
+│   ├── routes/                             # 路由层
+│   ├── middlewares/                        # 中间件
+│   ├── utils/                              # 通用工具
+│   ├── external/                           # 外部MCP服务示例
+│   ├── config/                             # 配置管理
+│   └── prompts/                            # 提示词管理
+└── docs/                                   # 架构文档
 ```
 
 ## 🎯 快速开始
@@ -84,100 +84,8 @@ pnpm build
 pnpm start
 ```
 
-- **默认API地址**: `http://localhost:3000`
-- **外部MCP服务**: 自动启动并注册（如 `system-mcp-server`、`compare-mcp-server`、`two-sum-mcp-server`）
-- **A2A 路由**: 支持显式指定、LLM 精准路由与回退，详见 `docs/a2a-flow.md`
-
-## 📡 API 文档
-
-### 健康检查
-
-```http
-GET /api/health
-```
-
-**响应示例：**
-```json
-{
-    "success": true,
-    "data": {
-        "status": "healthy",
-        "timestamp": "2024-01-01T00:00:00.000Z",
-        "uptime": 3600
-    }
-}
-```
-
-### 流式聊天（链式处理）
-
-```http
-POST /api/chat/stream
-Content-Type: application/json
-```
-
-**请求体：**
-```json
-{
-    "messages": [
-        {
-            "type": "human",
-            "content": "给我打个招呼，然后获取当前服务信息"
-        }
-    ],
-    "reactVerbose": false,
-    "maxAgents": 3,
-    "routingThreshold": 0.5
-}
-```
-
-**参数说明：**
-- `messages`: LangChain风格消息数组（必须包含至少一条human消息）
-- `reactVerbose`（可选，默认false）：
-  - `false`: 只返回最终增强后的答案
-  - `true`: 返回详细的ReAct JSON步骤
-- `agentName`（可选）: 显式指定要执行的Agent；不传则走智能路由
-- `maxAgents`（可选，默认5）: 最大Agent数量（统一支持1-N个Agent处理）
-- `routingThreshold`（可选，默认0.5）: Agent路由的置信度阈值
-
-**响应：** `text/plain` 流式输出
-
-### 示例请求
-
-```bash
-# 基础聊天（单Agent）
-curl -N -X POST http://localhost:3000/api/chat/stream \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "messages":[{"type":"human","content":"你好，请介绍一下自己"}],
-    "reactVerbose": false
-  }'
-
-# 工具调用（自动多Agent）
-curl -N -X POST http://localhost:3000/api/chat/stream \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "messages":[{"type":"human","content":"获取系统信息并比较 3 和 5 的大小"}],
-    "reactVerbose": true,
-    "maxAgents": 3
-  }'
-
-# 智能网页抓取示例
-curl -N -X POST http://localhost:3000/api/chat/stream \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "messages":[{"type":"human","content":"请帮我抓取并分析 https://example.com 的内容，用Markdown格式输出"}],
-    "agentName": "web-helper-agent",
-    "reactVerbose": true
-  }'
-
-# 多格式输出支持
-curl -N -X POST http://localhost:3000/api/chat/stream \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "messages":[{"type":"human","content":"请抓取网页内容并生成JSON格式的结构化数据"}],
-    "agentName": "web-helper-agent"
-  }'
-```
+### 测试
+public/chat.html 是测试网页。
 
 ## 🔄 处理流程
 
@@ -209,30 +117,6 @@ AgentChain.runChain() × N
 - **优势**: 通用性强，兼容性好
 - **劣势**: Token开销略高
 
-> 说明：已删去 Function 模式；即使客户端传入 `function`，也会走 Prompt 模式。
-
-## 🔧 环境变量
-
-| 变量名 | 默认值 | 说明 |
-|--------|--------|------|
-| `PORT` | `3000` | 服务端口 |
-| `LLM_API_KEY` | - | 大模型API密钥 |
-| `LLM_MODEL` | `` | 模型名称 |
-| `LLM_BASE_URL` | - | OpenAI兼容API地址 |
-| `REACT_STRATEGY` | `prompt` | 默认执行策略（固定为 prompt） |
-| `LLM_PROVIDER` | `` | LLM厂商选择（目前支持`deepseek`/`qwen`） |
-| `LLM_TEMPERATURE` | `0.7` | 采样温度 |
-| `LLM_STREAMING` | `true` | 是否流式 |
-| `LOG_LEVEL` | `info` | 日志级别 |
-
-## TODO
-1. 目前只有正常对话能够记住上下文，工具调用无法记住上下文。 后续支持agent和工具调用单独处理上下文 [✅]
-2. 支持图片识别（需要换一个多模态模型）
-3. 支持多Agent协同处理复杂任务 [✅ 已实现统一多Agent架构]
-4. 支持持久化对话历史和上下文管理
-5. 添加更多专业领域的Agent（如代码生成、数据分析等）
-6. 智能网页抓取和LLM驱动格式化工具
-
 ## 📚 相关文档
 
 - [Agent模块文档](./src/agent/README.md)
@@ -240,11 +124,3 @@ AgentChain.runChain() × N
 - [A2A 路由/启动流程](./docs/a2a-flow.md)
 - [A2A 模块说明](./src/A2A/README.md)
 - [MCP协议文档](https://modelcontextprotocol.io/)
-
-## 📄 许可证
-
-MIT License
-
----
-
-如有问题或建议，请提交Issue或Pull Request。
