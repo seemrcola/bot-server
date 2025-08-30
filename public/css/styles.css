@@ -1,0 +1,177 @@
+/* =============================================================================
+   Bot Server Chat Interface - 主样式文件
+   ============================================================================= */
+
+/* 自定义滚动条 */
+.scrollbar-thin::-webkit-scrollbar { 
+  width: 8px; 
+  height: 8px; 
+}
+.scrollbar-thin::-webkit-scrollbar-thumb { 
+  background: #e5e7eb; 
+  border-radius: 9999px; 
+}
+.scrollbar-thin::-webkit-scrollbar-track { 
+  background: transparent; 
+}
+
+/* 加载指示器 */
+.loading-indicator {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 状态指示器 */
+.status-pill {
+  transition: all 0.2s ease;
+}
+
+.status-pill.idle {
+  @apply bg-slate-100 text-slate-700;
+}
+
+.status-pill.processing {
+  @apply bg-blue-50 text-blue-700;
+}
+
+.status-pill.success {
+  @apply bg-emerald-50 text-emerald-700;
+}
+
+.status-pill.error {
+  @apply bg-rose-50 text-rose-700;
+}
+
+/* 聊天消息样式 */
+.chat-message {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 用户消息 */
+.message-user {
+  @apply flex items-start gap-3 ml-auto flex-row-reverse;
+}
+
+.message-user .avatar {
+  @apply shrink-0 h-8 w-8 rounded-full bg-slate-200 grid place-items-center text-slate-600 text-sm;
+}
+
+.message-user .content {
+  @apply rounded-2xl px-4 py-2 max-w-[80%] bg-slate-900 text-white;
+}
+
+/* AI消息 */
+.message-ai {
+  @apply flex items-start gap-3;
+}
+
+.message-ai .avatar {
+  @apply shrink-0 h-8 w-8 rounded-full bg-white ring-1 ring-slate-300 grid place-items-center text-slate-900 text-sm;
+}
+
+.message-ai .content {
+  @apply bg-white border border-slate-200 rounded-2xl px-4 py-2 max-w-[80%] text-slate-900;
+}
+
+/* ReAct步骤样式 */
+.react-step {
+  @apply px-2 py-1 bg-white rounded border border-slate-200 whitespace-pre-wrap break-words;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+/* 按钮样式增强 */
+.btn-primary {
+  @apply px-4 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors;
+}
+
+.btn-secondary {
+  @apply px-3 py-1.5 text-xs rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors;
+}
+
+.btn-tab {
+  @apply px-3 py-2 text-xs rounded-t-md border transition-colors;
+}
+
+.btn-tab.active {
+  @apply border-b-0 border-slate-200 bg-white text-slate-900;
+}
+
+.btn-tab.inactive {
+  @apply border-slate-200 bg-transparent text-slate-600;
+}
+
+/* 输入框增强 */
+.input-primary {
+  @apply px-3 py-2 rounded-lg bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 transition-all;
+}
+
+/* 面板样式 */
+.panel {
+  @apply h-[60vh] overflow-y-auto overflow-x-hidden p-4 space-y-2 text-xs font-mono text-slate-800 bg-white scrollbar-thin break-words;
+}
+
+/* 响应式设计增强 */
+@media (max-width: 1024px) {
+  .message-user .content,
+  .message-ai .content {
+    @apply max-w-[90%];
+  }
+}
+
+@media (max-width: 768px) {
+  .header-controls {
+    @apply flex-col gap-2;
+  }
+  
+  .header-controls .url-input {
+    @apply w-full;
+  }
+}
+
+/* 错误状态样式 */
+.error-message {
+  @apply text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-3 text-sm;
+}
+
+/* 成功状态样式 */
+.success-message {
+  @apply text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm;
+}
+
+/* 调试模式样式 */
+.debug-mode .react-step {
+  @apply bg-yellow-50 border-yellow-200;
+}
+
+/* 工具提示样式 */
+.tooltip {
+  @apply absolute z-10 px-2 py-1 text-xs text-white bg-gray-900 rounded shadow-lg opacity-0 pointer-events-none transition-opacity;
+}
+
+.tooltip.show {
+  @apply opacity-100;
+}
