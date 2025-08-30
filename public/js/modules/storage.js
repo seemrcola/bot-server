@@ -15,11 +15,12 @@ class StorageManager {
      * 初始化存储管理器
      */
     init() {
-        if (this.isInitialized) return
-        
+        if (this.isInitialized)
+            return
+
         console.log('[Storage] 存储管理器初始化完成')
         this.isInitialized = true
-        
+
         // 执行清理过期数据
         this.cleanupExpiredData()
     }
@@ -299,7 +300,7 @@ class StorageManager {
     // ======================
     // 便捷方法别名（为了兼容其他模块的调用）
     // ======================
-    
+
     /**
      * 获取配置（别名）
      * @returns {object}
@@ -307,7 +308,7 @@ class StorageManager {
     getConfig() {
         return this.getChatConfig()
     }
-    
+
     /**
      * 保存配置（别名）
      * @param {object} config - 配置对象
@@ -316,7 +317,7 @@ class StorageManager {
     saveConfig(config) {
         return this.saveChatConfig(config)
     }
-    
+
     /**
      * 获取聊天历史（别名）
      * @returns {Array}
@@ -324,7 +325,7 @@ class StorageManager {
     getChatHistory() {
         return this.getConversationHistory()
     }
-    
+
     /**
      * 保存聊天历史（别名）
      * @param {Array} history - 对话历史
@@ -333,7 +334,7 @@ class StorageManager {
     saveChatHistory(history) {
         return this.saveConversationHistory(history)
     }
-    
+
     /**
      * 清空聊天历史（别名）
      * @returns {boolean}
@@ -344,13 +345,13 @@ class StorageManager {
 
     /**
      * 获取状态
-     * @returns {Object}
+     * @returns {object}
      */
     getStatus() {
         return {
             initialized: this.isInitialized,
             supported: this.isSupported,
-            usage: this.getStorageUsage()
+            usage: this.getStorageUsage(),
         }
     }
 }
