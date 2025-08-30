@@ -1,6 +1,6 @@
-import type { Browser, Page } from 'puppeteer'
+import type { Browser, Page } from 'playwright'
 import type { HtmlFetcherInput, HtmlFetchResult, ToolResult } from '../types.js'
-import puppeteer from 'puppeteer'
+import { chromium } from 'playwright'
 import { createLogger } from '@/utils/logger.js'
 import { HtmlFetcherSchema } from '../types.js'
 import {
@@ -27,7 +27,7 @@ export class HtmlFetcherTool {
             name: 'htmlFetcher',
             schema: {
                 title: 'HTML内容获取工具',
-                description: '获取网页的HTML内容，支持静态和动态网页抓取，可处理JavaScript渲染的页面',
+                description: '使用无头浏览器（Playwright）获取网页的完整HTML内容，支持JavaScript渲染的动态网页，确保内容完整性和可靠性',
                 inputSchema: HtmlFetcherSchema.shape,
             },
             handler: this.handleToolCall.bind(this),
@@ -64,120 +64,27 @@ export class HtmlFetcherTool {
     }
 
     /**
-     * 获取网页HTML内容
+     * 获取网页HTML内容（统一使用Playwright）
      */
     static async fetchHtml(input: HtmlFetcherInput): Promise<ToolResult<HtmlFetchResult>> {
         return withErrorHandling('HTML获取', async () => {
             const {
                 url,
-                useHeadless = false,
                 timeout = 30000,
                 waitForSelector,
                 userAgent,
             } = input
 
-            logger.info(`开始获取HTML: ${url}${useHeadless ? ' (使用无头浏览器)' : ''}`)
+            logger.info(`开始获取HTML: ${url} (使用无头浏览器)`)
 
-            if (useHeadless) {
-                return await this.fetchWithPuppeteer(url, timeout, waitForSelector, userAgent)
-            }
-            else {
-                return await this.fetchWithFetch(url, timeout, userAgent)
-            }
+            return await this.fetchWithPlaywright(url, timeout, waitForSelector, userAgent)
         })()
     }
 
     /**
-     * 使用fetch获取静态HTML
+     * 使用Playwright获取动态HTML
      */
-    private static async fetchWithFetch(
-        url: string,
-        timeout: number,
-        userAgent?: string,
-    ): Promise<ToolResult<HtmlFetchResult>> {
-        const startTime = Date.now()
-
-        try {
-            const headers: Record<string, string> = {
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                'Accept-Encoding': 'gzip, deflate, br',
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache',
-            }
-
-            if (userAgent) {
-                headers['User-Agent'] = userAgent
-            }
-            else {
-                headers['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
-
-            const response = await withTimeout(
-                fetch(url, {
-                    method: 'GET',
-                    headers,
-                    redirect: 'follow',
-                }),
-                timeout,
-            )
-
-            if (!response.ok) {
-                return createErrorResult(
-                    'HTTP请求',
-                    `HTTP错误: ${response.status} ${response.statusText}`,
-                    response.status === 403
-                        ? ErrorCode.FORBIDDEN
-                        : response.status === 404
-                            ? ErrorCode.NOT_FOUND
-                            : response.status >= 500 ? ErrorCode.SERVER_ERROR : ErrorCode.NETWORK_ERROR,
-                )
-            }
-
-            const html = await response.text()
-            const loadTime = Date.now() - startTime
-
-            // 解析内容类型
-            const contentType = response.headers.get('content-type') || 'text/html'
-
-            // 提取基础元数据
-            const metadata = this.extractBasicMetadata(html)
-
-            const result: HtmlFetchResult = {
-                html,
-                contentType,
-                statusCode: response.status,
-                finalUrl: response.url,
-                loadTime,
-                isStatic: true,
-                metadata: {
-                    ...metadata,
-                    size: html.length,
-                },
-            }
-
-            logger.info(`静态HTML获取成功: ${result.finalUrl}, 大小: ${result.metadata.size} 字符, 耗时: ${loadTime}ms`)
-
-            return createSuccessResult(result, {
-                url: result.finalUrl,
-                contentLength: result.metadata.size,
-            })
-        }
-        catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error)
-
-            return createErrorResult(
-                'HTTP请求',
-                `获取HTML失败: ${errorMessage}`,
-                errorMessage.includes('timeout') ? ErrorCode.TIMEOUT : ErrorCode.NETWORK_ERROR,
-            )
-        }
-    }
-
-    /**
-     * 使用Puppeteer获取动态HTML
-     */
-    private static async fetchWithPuppeteer(
+    private static async fetchWithPlaywright(
         url: string,
         timeout: number,
         waitForSelector?: string,
@@ -192,7 +99,7 @@ export class HtmlFetcherTool {
 
             if (!this.browser) {
                 return createErrorResult(
-                    'Puppeteer初始化',
+                    'Playwright初始化',
                     '无法启动浏览器',
                     ErrorCode.UNKNOWN_ERROR,
                 )
@@ -202,11 +109,13 @@ export class HtmlFetcherTool {
 
             // 设置用户代理
             if (userAgent) {
-                await page.setUserAgent(userAgent)
+                await page.setExtraHTTPHeaders({
+                    'User-Agent': userAgent,
+                })
             }
 
             // 设置视窗大小
-            await page.setViewport({ width: 1920, height: 1080 })
+            await page.setViewportSize({ width: 1920, height: 1080 })
 
             // 设置超时时间
             page.setDefaultTimeout(timeout)
@@ -225,7 +134,7 @@ export class HtmlFetcherTool {
 
             // 导航到页面
             const response = await page.goto(url, {
-                waitUntil: 'networkidle0',
+                waitUntil: 'networkidle',
                 timeout,
             })
 
@@ -267,7 +176,7 @@ export class HtmlFetcherTool {
             // 获取页面标题和基础信息
             const [title, description] = await Promise.all([
                 page.title().catch(() => undefined),
-                page.$eval('meta[name="description"]', el => el.getAttribute('content')).catch(() => undefined),
+                page.locator('meta[name="description"]').getAttribute('content').catch(() => undefined),
             ])
 
             const result: HtmlFetchResult = {
@@ -276,7 +185,6 @@ export class HtmlFetcherTool {
                 statusCode: response.status(),
                 finalUrl: response.url(),
                 loadTime,
-                isStatic: false,
                 metadata: {
                     ...(title && { title }),
                     ...(description && { description }),
@@ -285,7 +193,7 @@ export class HtmlFetcherTool {
                 },
             }
 
-            logger.info(`动态HTML获取成功: ${result.finalUrl}, 大小: ${result.metadata.size} 字符, 耗时: ${loadTime}ms`)
+            logger.info(`HTML获取成功: ${result.finalUrl}, 大小: ${result.metadata.size} 字符, 耗时: ${loadTime}ms`)
 
             return createSuccessResult(result, {
                 url: result.finalUrl,
@@ -296,8 +204,8 @@ export class HtmlFetcherTool {
             const errorMessage = error instanceof Error ? error.message : String(error)
 
             return createErrorResult(
-                'Puppeteer获取',
-                `获取动态HTML失败: ${errorMessage}`,
+                'Playwright获取',
+                `获取HTML失败: ${errorMessage}`,
                 errorMessage.includes('timeout') ? ErrorCode.TIMEOUT : ErrorCode.NETWORK_ERROR,
             )
         }
@@ -323,7 +231,7 @@ export class HtmlFetcherTool {
         }
 
         try {
-            this.browser = await puppeteer.launch({
+            this.browser = await chromium.launch({
                 headless: true,
                 args: [
                     '--no-sandbox',
@@ -331,20 +239,19 @@ export class HtmlFetcherTool {
                     '--disable-dev-shm-usage',
                     '--disable-accelerated-2d-canvas',
                     '--disable-gpu',
-                    '--window-size=1920,1080',
                 ],
             })
 
-            logger.info('Puppeteer浏览器已启动')
+            logger.info('Playwright浏览器已启动')
 
             // 监听浏览器断开连接
             this.browser.on('disconnected', () => {
-                logger.info('Puppeteer浏览器已断开连接')
+                logger.info('Playwright浏览器已断开连接')
                 this.browser = null
             })
         }
         catch (error) {
-            logger.error('启动Puppeteer浏览器失败:', error)
+            logger.error('启动Playwright浏览器失败:', error)
             throw error
         }
     }
@@ -357,10 +264,10 @@ export class HtmlFetcherTool {
             try {
                 await this.browser.close()
                 this.browser = null
-                logger.info('Puppeteer浏览器已关闭')
+                logger.info('Playwright浏览器已关闭')
             }
             catch (error) {
-                logger.error('关闭Puppeteer浏览器失败:', error)
+                logger.error('关闭Playwright浏览器失败:', error)
             }
         }
     }

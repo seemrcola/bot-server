@@ -1,6 +1,5 @@
 import type { ContentParseResult, ContentParserInput, ToolResult } from '../types.js'
 import { Readability } from '@mozilla/readability'
-import * as cheerio from 'cheerio'
 import { JSDOM } from 'jsdom'
 import { createLogger } from '@/utils/logger.js'
 import { ContentParserSchema } from '../types.js'
@@ -25,7 +24,7 @@ export class ContentParserTool {
             name: 'contentParser',
             schema: {
                 title: '网页内容解析工具',
-                description: '解析HTML内容提取主要文章内容，使用Readability算法和Cheerio结合，支持图片、链接和结构化数据提取',
+                description: '解析HTML内容提取主要文章内容，使用Readability算法提取结构化内容，支持图片、链接和结构化数据提取',
                 inputSchema: ContentParserSchema.shape,
             },
             handler: this.handleToolCall.bind(this),
@@ -76,80 +75,43 @@ export class ContentParserTool {
 
             logger.info(`开始解析内容: ${url}`)
 
-            // 1. 首先使用Cheerio进行基础解析
-            const cheerioResult = await this.parseWithCheerio(
-                html,
-                url,
-                extractImages,
-                extractLinks,
-            )
-
-            if (!cheerioResult.success) {
-                return cheerioResult
-            }
-
-            const cheerioData = cheerioResult.data!
-
-            // 2. 尝试使用Readability提取主要内容
+            // 1. 使用Readability提取主要内容
             const readabilityResult = await this.extractWithReadability(html, url)
-            let readabilityData: any = null
 
-            if (readabilityResult.success) {
-                readabilityData = readabilityResult.data!
-            }
-            else {
-                logger.warn('Readability解析失败，将使用Cheerio回退方案')
+            if (!readabilityResult.success) {
+                return readabilityResult
             }
 
-            // 3. 合并结果 - 优先使用Readability，但支持Cheerio回退
-            let content = ''
-            let textContent = ''
+            const readabilityData = readabilityResult.data!
 
-            if (readabilityData && readabilityData.content) {
-                content = readabilityData.content
-                textContent = readabilityData.textContent || ''
-            }
-            else {
-                // 回退到Cheerio提取内容
-                const $ = cheerio.load(html)
-                // 移除脚本和样式标签
-                $('script, style, nav, footer, .ad, .advertisement, .sidebar').remove()
+            // 2. 从 DOM 中提取图片和链接（如果需要）
+            const dom = new JSDOM(html, { url })
+            const document = dom.window.document
 
-                // 尝试提取主要内容区域
-                const mainContent = $('main, article, .content, .post, .entry, .body').first()
-                if (mainContent.length > 0) {
-                    content = mainContent.html() || ''
-                    textContent = mainContent.text().trim()
-                }
-                else {
-                    // 如果没有找到主要内容区域，提取所有段落
-                    const paragraphs = $('p, h1, h2, h3, h4, h5, h6').map((_, el) => $(el).text().trim()).get()
-                    textContent = paragraphs.filter(p => p.length > 10).join('\n\n')
-                    content = textContent
-                }
+            const images = extractImages ? this.extractImages(document, url) : []
+            const links = extractLinks ? this.extractLinks(document, url) : []
+            const structuredData = this.extractStructuredData(document)
+
+            const result: ContentParseResult = {
+                title: readabilityData.title || '无标题',
+                content: readabilityData.content, // 返回HTML内容，由Formatter负责转换
+                excerpt: readabilityData.excerpt || this.generateExcerpt(readabilityData.textContent),
+                ...(readabilityData.author && { author: readabilityData.author }),
+                ...(readabilityData.publishedTime && { publishedTime: readabilityData.publishedTime }),
+                readingTime: this.calculateReadingTime(readabilityData.textContent),
+                wordCount: this.countWords(readabilityData.textContent),
+                images,
+                links,
+                structuredData,
             }
 
-            const result: any = {
-                title: (readabilityData?.title || cheerioData.title || '无标题').trim(),
-                content,
-                excerpt: readabilityData?.excerpt || this.generateExcerpt(textContent),
-                // 使用条件属性避免undefined分配问题
-                ...(readabilityData?.author && { author: readabilityData.author }),
-                ...(readabilityData?.publishedTime && { publishedTime: readabilityData.publishedTime }),
-                readingTime: this.calculateReadingTime(textContent),
-                wordCount: this.countWords(textContent),
-                images: extractImages ? cheerioData.images : [],
-                links: extractLinks ? cheerioData.links : [],
-                structuredData: cheerioData.structuredData,
-            }
-
-            // 4. 验证内容长度 - 降低阈值以支持更多类型的页面
-            const actualMinLength = Math.min(minContentLength, 20) // 最低20字符
-            if (result.content.length < actualMinLength && textContent.length < actualMinLength) {
+            // 3. 验证内容长度
+            const actualMinLength = Math.min(minContentLength, 20)
+            if (result.content.length < actualMinLength) {
                 return createErrorResult(
                     '内容验证',
-                    `提取的内容过短 (content: ${result.content.length}, text: ${textContent.length} < ${actualMinLength} 字符)`,
-                    ErrorCode.CONTENT_TOO_SHORT,
+                    `提取的内容过短 (${result.content.length} < ${actualMinLength} 字符)`,
+                    ErrorCode.PARSING_ERROR,
                 )
             }
 
@@ -222,120 +184,87 @@ export class ContentParserTool {
     }
 
     /**
-     * 使用Cheerio进行辅助解析
+     * 从DOM中提取图片信息
      */
-    private static async parseWithCheerio(
-        html: string,
-        url: string,
-        extractImages: boolean,
-        extractLinks: boolean,
-    ): Promise<ToolResult<{
-        title: string
-        images: Array<{ src: string, alt?: string, caption?: string }>
-        links: Array<{ href: string, text: string, isInternal: boolean }>
-        structuredData?: any
-    }>> {
-        try {
-            const $ = cheerio.load(html)
+    private static extractImages(document: Document, url: string): Array<{ src: string, alt?: string, caption?: string }> {
+        const images: Array<{ src: string, alt?: string, caption?: string }> = []
+        const imgElements = document.querySelectorAll('img')
 
-            // 提取标题
-            const title = $('title').text().trim()
-                || $('h1').first().text().trim()
-                || $('meta[property="og:title"]').attr('content') || ''
+        imgElements.forEach((img) => {
+            let src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src')
 
-            // 提取图片
-            const images: Array<{ src: string, alt?: string, caption?: string }> = []
-            if (extractImages) {
-                $('img').each((_, element) => {
-                    const $img = $(element)
-                    let src = $img.attr('src') || $img.attr('data-src') || $img.attr('data-lazy-src')
-
-                    if (src) {
-                        // 处理相对URL
-                        if (src.startsWith('/')) {
-                            const urlObj = new URL(url)
-                            src = `${urlObj.protocol}//${urlObj.host}${src}`
-                        }
-                        else if (src.startsWith('./') || !src.startsWith('http')) {
-                            try {
-                                src = new URL(src, url).href
-                            }
-                            catch {
-                                // 忽略无效URL
-                                return
-                            }
-                        }
-
-                        const alt = $img.attr('alt') || ''
-                        const caption = $img.closest('figure').find('figcaption').text().trim()
-                            || $img.parent().find('.caption, .image-caption').text().trim() || ''
-
-                        images.push({
-                            src,
-                            ...(alt && { alt }),
-                            ...(caption && { caption }),
-                        })
+            if (src) {
+                // 处理相对URL
+                if (src.startsWith('/')) {
+                    const urlObj = new URL(url)
+                    src = `${urlObj.protocol}//${urlObj.host}${src}`
+                }
+                else if (src.startsWith('./') || !src.startsWith('http')) {
+                    try {
+                        src = new URL(src, url).href
                     }
+                    catch {
+                        // 忽略无效URL
+                        return
+                    }
+                }
+
+                const alt = img.getAttribute('alt') || undefined
+                const figureElement = img.closest('figure')
+                const caption = figureElement?.querySelector('figcaption')?.textContent?.trim() || undefined
+
+                images.push({
+                    src,
+                    ...(alt && { alt }),
+                    ...(caption && { caption }),
                 })
             }
+        })
 
-            // 提取链接
-            const links: Array<{ href: string, text: string, isInternal: boolean }> = []
-            if (extractLinks) {
-                $('a[href]').each((_, element) => {
-                    const $link = $(element)
-                    let href = $link.attr('href')
+        return images
+    }
 
-                    if (href && !href.startsWith('#') && !href.startsWith('javascript:')) {
-                        const text = $link.text().trim()
+    /**
+     * 从DOM中提取链接信息
+     */
+    private static extractLinks(document: Document, url: string): Array<{ href: string, text: string, isInternal: boolean }> {
+        const links: Array<{ href: string, text: string, isInternal: boolean }> = []
+        const linkElements = document.querySelectorAll('a[href]')
 
-                        if (text) {
-                            // 处理相对URL
-                            if (href.startsWith('/')) {
-                                const urlObj = new URL(url)
-                                href = `${urlObj.protocol}//${urlObj.host}${href}`
-                            }
-                            else if (!href.startsWith('http')) {
-                                try {
-                                    href = new URL(href, url).href
-                                }
-                                catch {
-                                    // 忽略无效URL
-                                    return
-                                }
-                            }
+        linkElements.forEach((link) => {
+            let href = link.getAttribute('href')
 
-                            const isInternal = new URL(href).hostname === new URL(url).hostname
+            if (href && !href.startsWith('#') && !href.startsWith('javascript:')) {
+                const text = link.textContent?.trim()
 
-                            links.push({
-                                href,
-                                text,
-                                isInternal,
-                            })
+                if (text) {
+                    // 处理相对URL
+                    if (href.startsWith('/')) {
+                        const urlObj = new URL(url)
+                        href = `${urlObj.protocol}//${urlObj.host}${href}`
+                    }
+                    else if (!href.startsWith('http')) {
+                        try {
+                            href = new URL(href, url).href
+                        }
+                        catch {
+                            // 忽略无效URL
+                            return
                         }
                     }
-                })
+
+                    const isInternal = new URL(href).hostname === new URL(url).hostname
+
+                    links.push({
+                        href,
+                        text,
+                        isInternal,
+                    })
+                }
             }
+        })
 
-            // 提取结构化数据
-            const structuredData = this.extractStructuredData($)
-
-            const result = {
-                title,
-                images,
-                links,
-                structuredData,
-            }
-
-            return createSuccessResult(result)
-        }
-        catch (error) {
-            return createErrorResult(
-                'Cheerio解析',
-                `解析失败: ${error instanceof Error ? error.message : String(error)}`,
-                ErrorCode.PARSING_ERROR,
-            )
-        }
+        return links
     }
 
     /**
@@ -362,14 +291,15 @@ export class ContentParserTool {
     /**
      * 提取结构化数据
      */
-    private static extractStructuredData($: cheerio.CheerioAPI): any {
+    private static extractStructuredData(document: Document): any {
         const structuredData: any = {}
 
         try {
             // 提取JSON-LD
-            $('script[type="application/ld+json"]').each((_, element) => {
+            const jsonLdElements = document.querySelectorAll('script[type="application/ld+json"]')
+            jsonLdElements.forEach((element) => {
                 try {
-                    const jsonData = JSON.parse($(element).html() || '{}')
+                    const jsonData = JSON.parse(element.textContent || '{}')
                     if (jsonData['@type']) {
                         structuredData.jsonLd = jsonData
                     }
@@ -381,9 +311,10 @@ export class ContentParserTool {
 
             // 提取Open Graph数据
             const ogData: Record<string, string> = {}
-            $('meta[property^="og:"]').each((_, element) => {
-                const property = $(element).attr('property')
-                const content = $(element).attr('content')
+            const ogElements = document.querySelectorAll('meta[property^="og:"]')
+            ogElements.forEach((element) => {
+                const property = element.getAttribute('property')
+                const content = element.getAttribute('content')
                 if (property && content) {
                     ogData[property] = content
                 }
@@ -394,9 +325,10 @@ export class ContentParserTool {
 
             // 提取Twitter Card数据
             const twitterData: Record<string, string> = {}
-            $('meta[name^="twitter:"]').each((_, element) => {
-                const name = $(element).attr('name')
-                const content = $(element).attr('content')
+            const twitterElements = document.querySelectorAll('meta[name^="twitter:"]')
+            twitterElements.forEach((element) => {
+                const name = element.getAttribute('name')
+                const content = element.getAttribute('content')
                 if (name && content) {
                     twitterData[name] = content
                 }
@@ -416,7 +348,7 @@ export class ContentParserTool {
      * 生成内容摘要
      */
     private static generateExcerpt(content: string, maxLength = 200): string {
-    // 移除HTML标签
+        // 移除HTML标签
         const text = content.replace(/<[^>]*>/g, '').trim()
 
         if (text.length <= maxLength) {
@@ -457,7 +389,7 @@ export class ContentParserTool {
      * 统计字数
      */
     private static countWords(text: string): number {
-    // 移除HTML标签和多余空格
+        // 移除HTML标签和多余空格
         const cleanText = text.replace(/<[^>]*>/g, '').trim()
 
         // 统计中文字符和英文单词

@@ -4,8 +4,7 @@ import type {
     ResultFormatterInput,
     ToolResult,
 } from '../types.js'
-import { HumanMessage } from '@langchain/core/messages'
-import { createLLM } from '@/orchestration/llm.js'
+import TurndownService from 'turndown'
 import { createLogger } from '@/utils/logger.js'
 import { ResultFormatterSchema } from '../types.js'
 import {
@@ -16,7 +15,7 @@ import {
 const logger = createLogger('ResultFormatterTool')
 
 /**
- * 结果格式化工具类 - 基于LLM的智能格式化
+ * 结果格式化工具类 - 基于规则的确定性格式化
  */
 export class ResultFormatterTool {
     /**
@@ -26,8 +25,8 @@ export class ResultFormatterTool {
         return {
             name: 'resultFormatter',
             schema: {
-                title: '智能结果格式化工具',
-                description: '使用LLM智能分析和格式化网页内容，生成最适合的输出格式，支持Markdown、摘要、结构化展示等多种格式',
+                title: '结果格式化工具',
+                description: '将网页内容格式化为指定格式，支持Markdown、JSON、摘要、纯文本等多种输出格式，基于规则算法实现确定性转换',
                 inputSchema: ResultFormatterSchema.shape,
             },
             handler: this.handleToolCall.bind(this),
@@ -64,10 +63,10 @@ export class ResultFormatterTool {
     }
 
     /**
-     * LLM驱动的智能格式化
+     * 基于规则的格式化（不依赖LLM）
      */
     static async formatResult(input: ResultFormatterInput): Promise<ToolResult<FormatResult>> {
-        return withErrorHandling('智能格式化', async () => {
+        return withErrorHandling('格式化处理', async () => {
             const {
                 content,
                 format = 'markdown',
@@ -75,16 +74,27 @@ export class ResultFormatterTool {
                 includeMetadata = true,
             } = input
 
-            logger.info(`开始LLM智能格式化: 格式=${format}, 包含元数据=${includeMetadata}`)
+            logger.info(`开始格式化处理: 格式=${format}, 包含元数据=${includeMetadata}`)
 
             const startTime = Date.now()
 
-            // 构建LLM提示词
-            const prompt = this.buildFormattingPrompt(content, format, maxLength, includeMetadata)
+            let formattedContent: string
 
-            // 这里应该调用LLM API，但当前返回一个简化的格式化结果
-            // TODO: 集成LLM API调用
-            const formattedContent = await this.callLLMForFormatting(prompt, content, format)
+            switch (format) {
+                case 'markdown':
+                    formattedContent = this.formatToMarkdown(content, maxLength, includeMetadata)
+                    break
+                case 'json':
+                    formattedContent = this.formatToJson(content, maxLength, includeMetadata)
+                    break
+                case 'summary':
+                    formattedContent = this.formatToSummary(content, maxLength)
+                    break
+                case 'text':
+                default:
+                    formattedContent = this.formatToText(content, maxLength)
+                    break
+            }
 
             const formatTime = Date.now() - startTime
 
@@ -92,165 +102,190 @@ export class ResultFormatterTool {
                 format,
                 content: formattedContent,
                 metadata: {
-                    originalLength: content.content.length,
+                    originalLength: content.content?.length || 0,
                     formattedLength: formattedContent.length,
-                    formatTime,
+                    processingTime: formatTime,
+                    wordCount: this.countWords(formattedContent),
+                    includeMetadata,
                 },
             }
 
-            logger.info(`LLM格式化完成: 格式=${format}, 原始长度=${result.metadata.originalLength}, 格式化后长度=${result.metadata.formattedLength}, 耗时=${formatTime}ms`)
+            logger.info(`格式化完成: ${format}格式, 原长度=${result.metadata.originalLength}, 格式化后=${result.metadata.formattedLength}, 耗时=${formatTime}ms`)
 
             return createSuccessResult(result, {
-                contentLength: result.metadata.formattedLength,
+                contentLength: formattedContent.length,
             })
         })()
     }
 
     /**
-     * 构建LLM格式化提示词
+     * 格式化为Markdown
      */
-    private static buildFormattingPrompt(
+    private static formatToMarkdown(
         content: ResultFormatterInput['content'],
-        format: OutputFormat,
         maxLength?: number,
         includeMetadata: boolean = true,
     ): string {
-        // 针对不同格式的专业提示词
-        const formatInstructions = {
-            markdown: `请将网页内容转换为清晰、结构化的Markdown格式：
-- 使用适当的标题层级 (# ## ###)
-- 保持原有的段落结构和换行
-- 对重要内容使用 **粗体** 或 *斜体* 强调
-- 如果有列表，使用 - 或 1. 格式
-- 保留原文的语义和逻辑结构
-- 去除冗余的HTML标签和样式信息`,
+        let markdown = ''
 
-            json: `请将网页内容结构化为标准JSON格式，包含以下字段：
-{
-  "title": "文章标题",
-  "summary": "内容摘要（2-3句话）",
-  "content": "主要内容（保持段落结构）",
-  "key_points": ["要点1", "要点2", "要点3"],
-  "metadata": {
-    "word_count": "字数统计",
-    "reading_time": "预估阅读时间",
-    "content_type": "内容类型（如文章、新闻、教程等）"
-  }
-}
-确保JSON格式正确，可以被解析`,
-
-            summary: `请生成一份专业的内容摘要：
-- 用2-3个段落总结核心内容
-- 突出关键信息和重要观点
-- 保持客观中性的语调
-- 如果有数据或事实，请重点提及
-- 摘要应该让读者快速了解原文的主要内容`,
-
-            text: `请将内容格式化为易读的纯文本格式：
-- 使用适当的段落分隔
-- 保持清晰的逻辑层次
-- 去除HTML标签和格式符号
-- 使用简洁明了的语言
-- 保持原文的信息完整性`,
+        // 标题处理
+        if (content.title) {
+            markdown += `# ${content.title}\n\n`
         }
 
-        let prompt = `你是一个专业的内容格式化专家。请按照以下要求处理网页内容：\n\n`
-
-        // 格式化要求
-        prompt += `## 格式化要求\n${formatInstructions[format]}\n\n`
-
-        // 长度限制
-        if (maxLength) {
-            prompt += `## 长度限制\n请将输出内容控制在${maxLength}字符以内，如需精简请保留最重要的信息。\n\n`
+        // 摘要处理
+        if (content.excerpt && includeMetadata) {
+            markdown += `## 摘要\n\n${content.excerpt}\n\n`
         }
 
-        // 元数据处理
+        // 内容处理
+        if (content.content) {
+            let mainContent = content.content
+
+            // 长度限制
+            if (maxLength && mainContent.length > maxLength) {
+                mainContent = `${mainContent.substring(0, maxLength)}...`
+            }
+
+            // HTML到Markdown转换
+            mainContent = this.htmlToMarkdown(mainContent)
+            markdown += `## 正文\n\n${mainContent}\n\n`
+        }
+
+        return markdown.trim()
+    }
+
+    /**
+     * 格式化为JSON
+     */
+    private static formatToJson(
+        content: ResultFormatterInput['content'],
+        maxLength?: number,
+        includeMetadata: boolean = true,
+    ): string {
+        const jsonObj: any = {
+            title: content.title,
+            summary: content.excerpt,
+        }
+
+        let mainContent = content.content || ''
+        if (maxLength && mainContent.length > maxLength) {
+            mainContent = `${mainContent.substring(0, maxLength)}...`
+        }
+
+        // 清理HTML标签
+        mainContent = mainContent.replace(/<[^>]+>/g, '').trim()
+        jsonObj.content = mainContent
+
         if (includeMetadata) {
-            prompt += `## 元数据处理\n请适当保留和利用标题、摘要等元数据信息，增强内容的可读性。\n\n`
+            jsonObj.metadata = {
+                wordCount: this.countWords(mainContent),
+                contentLength: mainContent.length,
+                processedAt: new Date().toISOString(),
+            }
         }
 
-        // 内容信息
-        prompt += `## 待处理内容\n\n`
-        prompt += `**标题**: ${content.title}\n\n`
+        return JSON.stringify(jsonObj, null, 2)
+    }
+
+    /**
+     * 格式化为摘要
+     */
+    private static formatToSummary(
+        content: ResultFormatterInput['content'],
+        maxLength?: number,
+    ): string {
+        let summary = ''
+
+        if (content.title) {
+            summary += `**${content.title}**\n\n`
+        }
 
         if (content.excerpt) {
-            prompt += `**摘要**: ${content.excerpt}\n\n`
+            summary += `${content.excerpt}\n\n`
         }
 
-        prompt += `**正文内容**:\n${content.content}\n\n`
+        if (content.content) {
+            // 提取纯文本
+            const textContent = content.content.replace(/<[^>]*>/g, '').trim()
 
-        // 输出要求
-        prompt += `## 输出要求\n直接输出格式化后的内容，不要包含任何解释或说明文字。确保输出结果符合${format}格式的标准要求。`
+            // 生成智能摘要（取前几段）
+            const paragraphs = textContent.split('\n').filter(p => p.trim().length > 20)
+            const summaryText = paragraphs.slice(0, 3).join('\n\n')
 
-        return prompt
+            if (maxLength && summaryText.length > maxLength) {
+                summary += `${summaryText.substring(0, maxLength)}...`
+            }
+            else {
+                summary += summaryText
+            }
+        }
+
+        return summary.trim()
     }
 
     /**
-     * 调用LLM进行智能格式化
+     * 格式化为纯文本
      */
-    private static async callLLMForFormatting(
-        prompt: string,
+    private static formatToText(
         content: ResultFormatterInput['content'],
-        format: OutputFormat,
-    ): Promise<string> {
-        try {
-            // 创建LLM实例
-            const llm = createLLM()
-
-            // 构建消息
-            const message = new HumanMessage(prompt)
-
-            // 调用LLM进行格式化
-            const response = await llm.invoke([message])
-
-            // 返回LLM的回复内容
-            const formattedContent = response.content.toString().trim()
-
-            logger.info(`LLM格式化完成: 格式=${format}, 输入长度=${content.content.length}, 输出长度=${formattedContent.length}`)
-
-            return formattedContent
-        }
-        catch (error: any) {
-            logger.error('LLM格式化失败，使用备用格式化', { error: error?.message || error, format })
-            return this.fallbackFormatting(content, format)
-        }
-    }
-
-    /**
-     * 备用格式化方法（当LLM调用失败时使用）
-     */
-    private static fallbackFormatting(
-        content: ResultFormatterInput['content'],
-        format: OutputFormat,
+        maxLength?: number,
     ): string {
-        switch (format) {
-            case 'markdown': {
-                return `# ${content.title}\n\n${content.excerpt ? `**摘要**: ${content.excerpt}\n\n` : ''}${content.content}`
-            }
+        let text = ''
 
-            case 'json': {
-                return JSON.stringify({
-                    title: content.title,
-                    excerpt: content.excerpt,
-                    content: content.content,
-                    formatted_at: new Date().toISOString(),
-                }, null, 2)
-            }
-
-            case 'summary': {
-                const textContent = content.content.replace(/<[^>]*>/g, '').trim()
-                const summary = textContent.length > 300
-                    ? `${textContent.substring(0, 300)}...`
-                    : textContent
-                return `**${content.title}**\n\n${content.excerpt}\n\n${summary}`
-            }
-
-            case 'text': {
-                const plainText = content.content.replace(/<[^>]*>/g, '').trim()
-                return `${content.title}\n${'='.repeat(content.title.length)}\n\n${content.excerpt}\n\n${plainText}`
-            }
-            default:
-                throw new Error(`不支持的格式: ${format}`)
+        if (content.title) {
+            text += `${content.title}\n${'='.repeat(content.title.length)}\n\n`
         }
+
+        if (content.excerpt) {
+            text += `摘要: ${content.excerpt}\n\n`
+        }
+
+        if (content.content) {
+            // 清理HTML并格式化
+            let plainText = content.content.replace(/<[^>]*>/g, '').trim()
+            plainText = plainText.replace(/\n\s*\n\s*\n/g, '\n\n') // 清理多余换行
+
+            if (maxLength && plainText.length > maxLength) {
+                plainText = `${plainText.substring(0, maxLength)}...`
+            }
+
+            text += plainText
+        }
+
+        return text.trim()
+    }
+
+    /**
+     * HTML到Markdown转换 - 使用专业的Turndown库
+     */
+    private static htmlToMarkdown(html: string): string {
+        const turndownService = new TurndownService({
+            headingStyle: 'atx',
+            bulletListMarker: '-',
+            codeBlockStyle: 'fenced',
+            fence: '```',
+            emDelimiter: '*',
+            strongDelimiter: '**',
+            linkStyle: 'inlined',
+            linkReferenceStyle: 'full',
+        })
+
+        return turndownService.turndown(html)
+    }
+
+    /**
+     * 统计词数
+     */
+    private static countWords(text: string): number {
+        // 简单的词数统计（中文按字符，英文按单词）
+        const chineseChars = (text.match(/[\u4E00-\u9FFF]/g) || []).length
+        const englishWords = (text.match(/\b[a-z]+\b/gi) || []).length
+        return chineseChars + englishWords
     }
 }
+
+// 创建单例实例
+const resultFormatterTool = new ResultFormatterTool()
+
+export default resultFormatterTool

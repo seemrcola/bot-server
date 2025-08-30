@@ -39,7 +39,6 @@ export interface HtmlFetchResult {
     statusCode: number
     finalUrl: string
     loadTime: number
-    isStatic: boolean
     metadata: {
         title?: string | undefined
         description?: string | undefined
@@ -86,7 +85,9 @@ export interface FormatResult {
     metadata: {
         originalLength: number
         formattedLength: number
-        formatTime: number
+        processingTime: number
+        wordCount?: number
+        includeMetadata?: boolean
     }
 }
 
@@ -101,7 +102,6 @@ export const UrlValidatorSchema = z.object({
 
 export const HtmlFetcherSchema = z.object({
     url: z.string().url('请提供有效的URL地址'),
-    useHeadless: z.boolean().optional().default(false),
     timeout: z.number().min(1000).max(60000).optional().default(30000),
     waitForSelector: z.string().optional(),
     userAgent: z.string().optional(),
