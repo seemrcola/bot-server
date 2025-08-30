@@ -36,7 +36,7 @@ class StorageManager {
             localStorage.removeItem(test)
             return true
         }
-        catch (e) {
+        catch {
             console.warn('LocalStorage不可用，将使用内存存储')
             return false
         }
@@ -175,101 +175,6 @@ class StorageManager {
     }
 
     /**
-     * 获取用户偏好
-     * @returns {object}
-     */
-    getUserPreferences() {
-        return this.getItem(STORAGE_KEYS.USER_PREFERENCES, {
-            theme: 'light',
-            markdownEnabled: true,
-            autoScroll: true,
-            reactVerbose: true,
-            showTimestamps: false,
-        })
-    }
-
-    /**
-     * 保存用户偏好
-     * @param {object} preferences - 用户偏好
-     * @returns {boolean}
-     */
-    saveUserPreferences(preferences) {
-        const currentPrefs = this.getUserPreferences()
-        const newPrefs = { ...currentPrefs, ...preferences }
-        return this.setItem(STORAGE_KEYS.USER_PREFERENCES, newPrefs)
-    }
-
-    /**
-     * 导出所有数据
-     * @returns {object}
-     */
-    exportData() {
-        return {
-            config: this.getChatConfig(),
-            history: this.getConversationHistory(),
-            preferences: this.getUserPreferences(),
-            exportTime: new Date().toISOString(),
-        }
-    }
-
-    /**
-     * 导入数据
-     * @param {object} data - 要导入的数据
-     * @returns {boolean}
-     */
-    importData(data) {
-        try {
-            if (data.config) {
-                this.saveChatConfig(data.config)
-            }
-            if (data.history) {
-                this.saveConversationHistory(data.history)
-            }
-            if (data.preferences) {
-                this.saveUserPreferences(data.preferences)
-            }
-            return true
-        }
-        catch (e) {
-            console.error('导入数据失败', e)
-            return false
-        }
-    }
-
-    /**
-     * 获取存储使用情况
-     * @returns {object}
-     */
-    getStorageUsage() {
-        if (!this.isSupported) {
-            return { used: 0, quota: 0, percentage: 0 }
-        }
-
-        try {
-            let totalSize = 0
-            for (const key in localStorage) {
-                if (localStorage.hasOwnProperty(key)) {
-                    totalSize += localStorage[key].length + key.length
-                }
-            }
-
-            // 估算的存储配额（通常为5-10MB）
-            const estimatedQuota = 5 * 1024 * 1024 // 5MB
-            const percentage = (totalSize / estimatedQuota) * 100
-
-            return {
-                used: totalSize,
-                quota: estimatedQuota,
-                percentage: Math.min(percentage, 100),
-            }
-        }
-        catch (e) {
-            console.warn('获取存储使用情况失败', e)
-            return { used: 0, quota: 0, percentage: 0 }
-        }
-    }
-
-    /**
      * 清理过期数据
      * @param {number} maxAge - 最大保存时间（毫秒）
      * @returns {boolean}
@@ -351,7 +256,6 @@ class StorageManager {
         return {
             initialized: this.isInitialized,
             supported: this.isSupported,
-            usage: this.getStorageUsage(),
         }
     }
 }
