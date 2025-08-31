@@ -241,13 +241,15 @@ class ChatManager {
 
             if (action === 'agents') {
                 result = await api.listAgents(settings.baseUrl)
+                if (result) {
+                    uiManager.setMetaAgents(result)
+                }
             }
             else if (action === 'tools') {
                 result = await api.listTools(settings.baseUrl)
-            }
-
-            if (result) {
-                uiManager.setMetaContent(JSON.stringify(result, null, 2))
+                if (result) {
+                    uiManager.setMetaTools(result)
+                }
             }
 
             uiManager.setState('idle')

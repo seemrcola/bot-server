@@ -328,6 +328,207 @@ class UIManager {
     }
 
     /**
+     * 设置 Agents 列表显示
+     * @param {object} data - API响应数据
+     */
+    setMetaAgents(data) {
+        if (!this.elements.metaContent)
+            return
+
+        if (!data.success || !data.data) {
+            this.elements.metaContent.innerHTML = `
+                <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <div class="text-red-800 text-sm font-medium">❌ 获取 Agents 失败</div>
+                    <div class="text-red-600 text-xs mt-1">${data.error || '未知错误'}</div>
+                </div>
+            `
+            return
+        }
+
+        const agents = data.data
+        const leaderAgent = agents.find(agent => agent.isLeader)
+        const subAgents = agents.filter(agent => !agent.isLeader)
+
+        let html = `
+            <div class="mb-4">
+                <div class="text-sm font-semibold text-slate-700 mb-3 flex items-center">
+                    <span class="mr-2">🤖</span>
+                    <span>已注册的 Agents (${agents.length})</span>
+                </div>
+        `
+
+        // Leader Agent 单独显示
+        if (leaderAgent) {
+            html += `
+                <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center">
+                            <span class="text-blue-600 mr-2">👑</span>
+                            <span class="font-semibold text-slate-900">${leaderAgent.name}</span>
+                            <span class="text-xs bg-blue-500 text-white px-2 py-1 rounded-full ml-2 font-medium">Leader</span>
+                        </div>
+                    </div>
+                    <div class="text-sm text-slate-700 leading-relaxed">
+                        ${leaderAgent.description.replace(/\n/g, '<br>') || '无描述'}
+                    </div>
+                </div>
+            `
+        }
+
+        // 子 Agents
+        if (subAgents.length > 0) {
+            html += `<div class="text-xs font-medium text-slate-600 mb-2">子 Agents:</div>`
+
+            subAgents.forEach((agent) => {
+                html += `
+                    <div class="bg-white border border-slate-200 rounded-lg p-3 mb-2 ml-4">
+                        <div class="flex items-center mb-2">
+                            <span class="text-slate-500 mr-2">🔧</span>
+                            <span class="font-medium text-slate-900">${agent.name}</span>
+                        </div>
+                        <div class="text-xs text-slate-600 leading-relaxed pl-5">
+                            ${agent.description.replace(/\n/g, '<br>') || '无描述'}
+                        </div>
+                    </div>
+                `
+            })
+        }
+
+        html += '</div>'
+
+        this.elements.metaContent.innerHTML = html
+    }
+
+    /**
+     * 设置 Tools 列表显示
+     * @param {object} data - API响应数据
+     */
+    setMetaTools(data) {
+        if (!this.elements.metaContent)
+            return
+
+        if (!data.success || !data.data) {
+            this.elements.metaContent.innerHTML = `
+                <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <div class="text-red-800 text-sm font-medium">❌ 获取 Tools 失败</div>
+                    <div class="text-red-600 text-xs mt-1">${data.error || '未知错误'}</div>
+                </div>
+            `
+            return
+        }
+
+        const tools = data.data
+        let html = `
+            <div class="mb-4">
+                <div class="text-sm font-semibold text-slate-700 mb-3 flex items-center">
+                    <span class="mr-2">🔧</span>
+                    <span>可用工具 (${tools.length})</span>
+                </div>
+        `
+
+        // 按 Agent 分组
+        const toolsByAgent = {}
+        tools.forEach((tool) => {
+            const agentName = tool.sourceAgent || 'unknown'
+            if (!toolsByAgent[agentName]) {
+                toolsByAgent[agentName] = []
+            }
+            toolsByAgent[agentName].push(tool)
+        })
+
+        Object.entries(toolsByAgent).forEach(([agentName, agentTools]) => {
+            const agentDesc = agentTools[0]?.agentDescription || ''
+            const isLeader = agentName === 'leader-agent'
+
+            html += `
+                <div class="mb-6">
+                    <div class="${isLeader ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200' : 'bg-slate-50 border-slate-200'} border rounded-lg p-3 mb-3">
+                        <div class="flex items-center mb-1">
+                            <span class="${isLeader ? 'text-blue-600' : 'text-slate-600'} mr-2">${isLeader ? '👑' : '📦'}</span>
+                            <span class="font-medium ${isLeader ? 'text-blue-900' : 'text-slate-800'}">${agentName}</span>
+                            ${isLeader ? '<span class="text-xs bg-blue-500 text-white px-2 py-1 rounded-full ml-2">Leader</span>' : ''}
+                            <span class="text-xs ${isLeader ? 'text-blue-600' : 'text-slate-500'} ml-2">(${agentTools.length} 个工具)</span>
+                        </div>
+                        ${agentDesc ? `<div class="text-xs ${isLeader ? 'text-blue-700' : 'text-slate-600'} pl-6">${agentDesc}</div>` : ''}
+                    </div>
+            `
+
+            agentTools.forEach((tool) => {
+                const requiredParams = []
+                const optionalParams = []
+
+                if (tool.inputSchema && tool.inputSchema.properties) {
+                    const required = tool.inputSchema.required || []
+                    Object.keys(tool.inputSchema.properties).forEach((param) => {
+                        if (required.includes(param)) {
+                            requiredParams.push(param)
+                        }
+                        else {
+                            optionalParams.push(param)
+                        }
+                    })
+                }
+
+                const requiredParamsHtml = requiredParams.length > 0
+                    ? `
+                                <div class="mb-2">
+                                    <div class="text-xs text-slate-500 mb-1 font-medium">必需参数:</div>
+                                    <div class="flex flex-wrap gap-1">
+                                        ${requiredParams.map(param => `<span class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-mono">${param}</span>`).join('')}
+                                    </div>
+                                </div>
+                            `
+                    : ''
+
+                const optionalParamsHtml = optionalParams.length > 0
+                    ? `
+                                <div class="mb-2">
+                                    <div class="text-xs text-slate-500 mb-1 font-medium">可选参数:</div>
+                                    <div class="flex flex-wrap gap-1">
+                                        ${optionalParams.map(param => `<span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-mono">${param}</span>`).join('')}
+                                    </div>
+                                </div>
+                            `
+                    : ''
+
+                const noParamsHtml = requiredParams.length === 0 && optionalParams.length === 0
+                    ? `
+                                <div class="text-xs text-slate-400 italic">无参数</div>
+                            `
+                    : ''
+
+                html += `
+                    <div class="bg-white border border-slate-200 rounded-lg p-3 mb-2 ml-6 shadow-sm">
+                        <div class="flex items-start justify-between mb-2">
+                            <div class="flex-1">
+                                <div class="flex items-center mb-1">
+                                    <span class="text-emerald-600 mr-2">⚙️</span>
+                                    <span class="font-medium text-slate-900 text-sm">${tool.name}</span>
+                                </div>
+                                <div class="text-xs text-slate-600 leading-relaxed pl-6">
+                                    ${tool.description || tool.title || '无描述'}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pl-6">
+                            ${requiredParamsHtml}
+                            ${optionalParamsHtml}
+                            ${noParamsHtml}
+                        </div>
+                    </div>
+                `
+            })
+
+            html += '</div>'
+        })
+
+        html += '</div>'
+
+        this.elements.metaContent.innerHTML = html
+    }
+
+    /**
      * 清空聊天记录
      */
     clearChat() {

@@ -12,12 +12,25 @@ listRouter.get('/tools', async (_req: Request, res: Response) => {
         if (!agentManager)
             return res.status(500).json({ error: 'AgentManager 未初始化' })
 
-        // 通过 Leader 的 ClientManager 获取工具清单
-        const leaderAgent = agentManager.getLeader()
-        if (!leaderAgent)
-            return res.status(500).json({ error: 'Leader 未注册' })
-        const tools = await leaderAgent.clientManager.getAllTools()
-        return res.json({ success: true, data: tools })
+        // 汇总所有 Agent 的工具
+        const allAgents = agentManager.listAgents()
+        const allTools: any[] = []
+
+        for (const agentInfo of allAgents) {
+            const agent = agentManager.getAgent(agentInfo.name)
+            if (agent) {
+                const tools = await agent.clientManager.getAllTools()
+                // 为每个工具添加来源 Agent 信息
+                const toolsWithSource = tools.map(tool => ({
+                    ...tool,
+                    sourceAgent: agentInfo.name,
+                    agentDescription: agentInfo.description,
+                }))
+                allTools.push(...toolsWithSource)
+            }
+        }
+
+        return res.json({ success: true, data: allTools })
     }
     catch (e: any) {
         return res.status(500).json({ success: false, error: e?.message || String(e) })
