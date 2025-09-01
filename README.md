@@ -4,7 +4,7 @@
 
 ## 🚀 核心特性
 
-- **智能链式处理**：意图分析 → 执行 → 增强回复
+- **统一 ReAct 核心**：将传统的“意图分析 → 执行”模式，简化为统一的 `ReAct` 执行循环。模型在循环的第一步即可决定是调用工具还是直接回答。
 - **ReAct决策循环**：支持多次 `tool_call` → `observation` → `final_answer`
 - **统一Agent编排**：支持1-N个Agent的统一处理，不再区分单多Agent模式
 - **MCP外部工具**：自动发现和调用外部MCP工具服务
@@ -20,17 +20,15 @@
 Bot Server/
 ├── src/
 │   ├── agent/                              # Agent核心模块
-│   │   ├── chain/                          # 链式处理（新增）
+│   │   ├── chain/                          # 链式处理
 │   │   │   ├── agent-chain.ts              # 主链式处理器
 │   │   │   ├── types.ts                    # 类型定义
 │   │   │   └── steps/                      # 处理步骤
-│   │   │       ├── intent-analysis.ts      # 意图分析
-│   │   │       ├── direct-llm.ts           # 直接LLM回答
-│   │   │       ├── react-execution.ts      # ReAct执行
+│   │   │       ├── react-execution.ts      # ReAct执行 (统一入口)
 │   │   │       └── response-enhancement.ts # 响应增强
 │   │   ├── executors/                      # 执行器（底层实现）
 │   │   ├── mcp/                            # MCP协议支持
-│   │   └── manager.ts                      # Agent管理器
+│   │   └── manager.ts                      # Agent管理器 (deprecated)
 │   ├── orchestration/                      # Agent编排层
 │   │   ├── Dashboard/                      # Dashboard子Agent集合
 │   │   │   ├── WebHelper/                  # 网页抓取助手Agent
@@ -102,11 +100,11 @@ ChatService.runChainStream()
     ↓
 AgentChain.runChain() × N
     ↓
-意图分析 (IntentAnalysisStep)
+ReAct执行 (ReActExecutionStep)
     ↓
-分支判断
-    ├─ 直接回答 → DirectLLMStep → 流式输出
-    └─ 工具调用 → ReActExecutionStep → ResponseEnhancementStep → 流式输出
+响应增强 (ResponseEnhancementStep)
+    ↓
+流式输出
 ```
 
 ## 🛠️ 执行策略
@@ -119,8 +117,6 @@ AgentChain.runChain() × N
 
 ## 📚 相关文档
 
-- [Agent模块文档](./src/agent/README.md)
 - [ReAct流程](./docs/react-flow.md)
 - [A2A 路由/启动流程](./docs/a2a-flow.md)
-- [A2A 模块说明](./src/A2A/README.md)
 - [MCP协议文档](https://modelcontextprotocol.io/)

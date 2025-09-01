@@ -1,7 +1,7 @@
 ## ReAct 模式执行流（链式处理架构）
 
 ### 概述
-当前系统采用链式处理架构，ReAct执行是其中的一个重要步骤。完整的处理流程为：**意图分析 → 分支执行 → 响应增强**。
+当前系统采用链式处理架构，将 Agent 的决策和执行流程大大简化。完整的处理流程为：**ReAct执行 → 响应增强**。
 
 ### 完整处理流程
 
@@ -13,25 +13,16 @@ flowchart TD
   D --> E["创建 AgentChain"]
   E --> F["AgentChain.runChain"]
 
-  subgraph "阶段1: 意图分析"
-    F --> G["IntentAnalysisStep.execute"]
-    G --> H["分析用户消息和可用工具"]
-    H --> I{"需要工具调用?"}
+  subgraph "阶段1: ReAct 执行 (统一入口)"
+    F --> K["ReActExecutionStep.execute"]
   end
 
-  subgraph "阶段2: 分支执行"
-    I -- "否" --> J["DirectLLMStep.execute"]
-    I -- "是" --> K["ReActExecutionStep.execute"]
-  end
-
-  subgraph "阶段3: 响应增强"
-    J --> L["直接输出Markdown回答"]
+  subgraph "阶段2: 响应增强"
     K --> M["ResponseEnhancementStep.execute (仅在 final_answer 存在)"]
     M --> N["增强ReAct结果"]
   end
 
-  L --> O["流式输出最终结果"]
-  N --> O
+  N --> O["流式输出最终结果"]
 ```
 
 ### ReAct执行详细流程
@@ -45,20 +36,19 @@ flowchart TD
 #### 关键组件
 - `src/controllers/chat.controller.ts`：按 `agentName` 选择 Agent，按 `reactVerbose` 控制输出
 - `src/agent/chain/agent-chain.ts`：主链式处理器，协调各个步骤
-- `src/agent/chain/steps/react-execution.ts`：ReAct执行步骤，驱动 LLM 决策与工具调用
+- `src/agent/chain/steps/react-execution.ts`：ReAct执行步骤，统一驱动 LLM 决策与工具调用。LLM可在此步骤的第一轮就输出 `final_answer` 以实现直接回答。
 - `src/agent/executors/*.ts`：底层执行器（Prompt 模式）
 - `src/agent/agent.ts`：提供 `languageModel`、`clientManager`、`systemPromptValue` 给执行器复用
-  - `src/services/chat/chat.service.ts`：请求前 `await globals.agentManagerReady`，避免冷启动未就绪
+- `src/services/chat/chat.service.ts`：请求前 `await globals.agentManagerReady`，避免冷启动未就绪
 
 #### ReAct执行步骤（文字）
-1. **意图分析阶段**：`IntentAnalysisStep` 分析用户消息，判断是否需要工具调用
-2. **ReAct执行阶段**：如果需要工具调用，`ReActExecutionStep` 进入最多 `maxSteps` 的循环：
+1. **ReAct执行阶段**：`ReActExecutionStep` 进入最多 `maxSteps` 的循环：
    - 构造提示：系统提示 + ReAct 产出约束 + 工具清单 + 历史步骤 + 用户消息
    - 调用 LLM 得到一步 JSON 决策（`thought`、`action`、`action_input`）
    - 若 `action=tool_call`：使用 `ClientManager.callTool(tool_name, parameters)` 执行，提取文本作为 `observation` 写回该步骤
    - 若 `action=final_answer`：返回最终答案并终止
-3. **响应增强阶段**：仅在存在 `final_answer` 时，`ResponseEnhancementStep` 将ReAct结果转换为用户友好的Markdown
-4. **输出控制**：控制器按 `reactVerbose` 配置决定输出内容
+2. **响应增强阶段**：仅在存在 `final_answer` 时，`ResponseEnhancementStep` 将ReAct结果转换为用户友好的Markdown
+3. **输出控制**：控制器按 `reactVerbose` 配置决定输出内容
 
 #### ReAct执行流程图（更清晰）
 ```mermaid
@@ -93,7 +83,6 @@ flowchart TD
 - `src/controllers/chat.controller.ts`
 - `src/agent/chain/agent-chain.ts`
 - `src/agent/chain/steps/react-execution.ts`
-- `src/agent/chain/steps/intent-analysis.ts`
 - `src/agent/chain/steps/response-enhancement.ts`
 - `src/agent/executors/promptBaseToolUse.ReAct.ts`
 - `src/agent/agent.ts`

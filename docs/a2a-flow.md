@@ -21,13 +21,9 @@ flowchart TB
     H --> M["AgentChain.runChain"]
     E --> M
     L --> M
-    M --> N["IntentAnalysisStep"]
-    N --> O{"direct or react"}
-    O -- "direct" --> P["DirectLLMStep"]
-    O -- "react"  --> Q["ReActExecutionStep"]
+    M --> Q["ReActExecutionStep"]
     Q --> R["ResponseEnhancementStep (仅在 final_answer 存在)"]
-    R --> S
-    P --> S["Stream Output"]
+    R --> S["Stream Output"]
   end
 
   %% Bootstrap
