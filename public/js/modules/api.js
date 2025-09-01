@@ -313,14 +313,14 @@ const api = {
             defaultClient.setBaseUrl(baseUrl)
         }
 
-        // 构建消息数组
+        // 构建消息数组 - 转换为LangChain格式
         const messages = [
             ...history.map(msg => ({
-                role: msg.role,
+                type: msg.role === 'user' ? 'human' : 'ai',
                 content: msg.content,
             })),
             {
-                role: 'user',
+                type: 'human',
                 content: message,
             },
         ]

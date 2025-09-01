@@ -146,6 +146,8 @@ export class HtmlFetcherTool {
                 )
             }
 
+            console.log(response, '---------------------------------------------------')
+
             if (!response.ok()) {
                 return createErrorResult(
                     '页面响应',
