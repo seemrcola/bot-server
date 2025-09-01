@@ -15,8 +15,6 @@ export type {
 } from './executors/index.js'
 // 导出步骤类（如果需要单独使用）
 export {
-    DirectLLMStep,
-    IntentAnalysisStep,
     ReActExecutionStep,
     ResponseEnhancementStep,
 } from './steps/index.js'

@@ -72,11 +72,11 @@ export async function selectMultipleAgentsByLLM(params: {
         aliases: s.meta?.aliases || [],
     }))
 
-    const userText = getLastHumanText(params.messages)
+    // const userText = getLastHumanText(params.messages)
 
     const sys = new SystemMessage([
         '你是一个智能任务分解器和路由器。你的职责：',
-        '1. 分析用户的需求，判断是否需要专业Agent处理',
+        '1. 基于完整的对话历史，分析用户的最终需求，判断是否需要专业Agent处理',
         '2. 如果需要，为每个子任务选择最合适的专业Agent',
         '3. 为每个Agent指定明确的任务范围，避免重复工作',
         '',
@@ -101,11 +101,11 @@ export async function selectMultipleAgentsByLLM(params: {
     ].join('\n'))
 
     const human = new HumanMessage([
-        '用户原始需求：',
-        JSON.stringify(userText),
+        '完整的对话历史：',
+        JSON.stringify(params.messages),
         '\n\n可用的专业 Agent 列表：',
         JSON.stringify(catalog, null, 2),
-        '\n\n请分析用户需求：',
+        '\n\n请基于完整的对话历史分析用户的需求：',
         '1. 这是否为通用问题（问候、闲聊等）？如果是，返回 []',
         '2. 如果需要专业服务，识别其中包含的不同类型子任务',
         '3. 为每个子任务选择最合适的Agent',

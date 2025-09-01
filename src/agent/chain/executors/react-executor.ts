@@ -81,8 +81,8 @@ export class PromptReActExecutor {
                         '- 只能输出一个 JSON 对象；',
                         '- 当 action 为 tool_call 时，必须给出 action_input.tool_name 和 action_input.parameters；',
                         '- 当 action 为 final_answer 时，必须给出 answer；',
-                        '- 仅当必要工具已调用且信息充分时，才可输出 final_answer。',
-                        // '- 如果用户说"再查一次"、"重新查询"等，应重新调用相关工具而不是直接使用历史结果。',
+                        '- 如果问题无需工具即可回答，或信息已充分，直接输出 final_answer。',
+                        '- 当用户明确要求重新执行或再次查询时（例如说“再查一次”），你必须重新调用相关工具，而不是依赖历史 observation 的旧数据。',
                     ].join('\n'),
                 ),
                 new HumanMessage(

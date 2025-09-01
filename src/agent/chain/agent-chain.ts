@@ -3,8 +3,6 @@ import type { Agent } from '../agent.js'
 import type { ChainContext, ChainOptions, ChainStep } from './types.js'
 import { createLogger } from '../utils/logger.js'
 import {
-    DirectLLMStep,
-    IntentAnalysisStep,
     ReActExecutionStep,
     ResponseEnhancementStep,
 } from './steps/index.js'
@@ -21,9 +19,7 @@ export class AgentChain {
     constructor(agent: Agent) {
         this.agent = agent
         this.steps = [
-            new IntentAnalysisStep(), // 意图分析
-            new DirectLLMStep(), // 直接LLM
-            new ReActExecutionStep(), // ReAct执行
+            new ReActExecutionStep(), // 统一执行入口 (ReAct)
             new ResponseEnhancementStep(), // 响应增强
         ]
     }
@@ -38,7 +34,7 @@ export class AgentChain {
         // 等待Agent初始化完成
         await this.agent.ready
 
-        logger.info('AgentChain runChain start')
+        logger.info('AgentChain runChain start (Unified Execution)')
 
         // 创建上下文
         const builtOptions: ChainOptions = {
@@ -56,30 +52,17 @@ export class AgentChain {
             options: builtOptions,
         }
 
-        // 执行意图分析
-        const intentStep = this.steps[0]
-        if (intentStep) {
-            await intentStep.execute(context)
+        const [reactStep, enhanceStep] = this.steps
+
+        // 统一执行路径：ReAct -> 增强
+        if (reactStep) {
+            // 执行 ReAct 循环，它现在也负责处理“直接回答”的场景
+            yield* reactStep.execute(context) as AsyncIterable<string>
         }
 
-        // 根据意图选择执行路径
-        if (context.intentResult && context.intentResult.mode === 'direct') {
-            const directStep = this.steps[1]
-            if (directStep) {
-                yield* directStep.execute(context) as AsyncIterable<string>
-            }
-        }
-        else {
-            // ReAct模式：执行ReAct + 增强回复
-            const reactStep = this.steps[2]
-            const enhanceStep = this.steps[3]
-            if (reactStep) {
-                yield* reactStep.execute(context) as AsyncIterable<string>
-            }
-            // 仅在已得到最终答案时才进行增强回复
-            if (enhanceStep && hasFinalAnswer(context.reactResults)) {
-                yield* enhanceStep.execute(context) as AsyncIterable<string>
-            }
+        // 只要 ReAct 循环产生了最终答案，就进行增强
+        if (enhanceStep && hasFinalAnswer(context.reactResults)) {
+            yield* enhanceStep.execute(context) as AsyncIterable<string>
         }
     }
 }
