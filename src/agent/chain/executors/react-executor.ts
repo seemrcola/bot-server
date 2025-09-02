@@ -2,14 +2,14 @@ import type { BaseLanguageModel } from '@langchain/core/language_models/base'
 import type { BaseMessage } from '@langchain/core/messages'
 import type { Agent } from '../../agent.js'
 import type { ClientManager } from '../../mcp/client/manager.js'
+import type { ReActActionType } from '../prompt/react.prompt.js'
 import { HumanMessage, SystemMessage } from '@langchain/core/messages'
 import { createLogger } from '../../utils/logger.js'
+import { REACT_ACTION_TYPE, REACT_SYSTEM_PROMPT } from '../prompt/react.prompt.js'
 import { extractDisplayableTextFromToolResult, extractJsonFromText, extractText } from './utils.js'
 
 const logger = createLogger('ReActExecutor')
 const MAX_STEPS = 8
-
-export type ReActActionType = 'tool_call' | 'final_answer'
 
 export interface ReActStep {
     thought: string
@@ -60,29 +60,14 @@ export class PromptReActExecutor {
 
         for (let i = 0; i < maxSteps; i++) {
             const promptMessages: BaseMessage[] = [
+                /**
+                 * 系统提示词
+                 * @see src/agent/chain/prompt/react.prompt.ts
+                 */
                 new SystemMessage(
                     [
                         this.systemPrompt,
-                        '你正在以 ReAct 模式进行推理与工具使用。',
-                        '基于完整对话上下文进行分析和决策，确保回答的连贯性。',
-                        '严格以 JSON 输出（不可包含多余说明、不可使用 Markdown 代码块）。',
-                        'JSON 结构如下：',
-                        '{',
-                        '  "thought": "当前推理步骤的逻辑说明",',
-                        '  "action": "下一步动作类型（如：tool_call, final_answer）",',
-                        '  "action_input": {',
-                        '    "tool_name": "工具名（若action为tool_call）",',
-                        '    "parameters": {}',
-                        '  },',
-                        '  "observation": "上一步工具调用的返回结果（仅后续步骤需要）",',
-                        '  "answer": "最终回答（若action为final_answer)"',
-                        '}',
-                        '输出要求：',
-                        '- 只能输出一个 JSON 对象；',
-                        '- 当 action 为 tool_call 时，必须给出 action_input.tool_name 和 action_input.parameters；',
-                        '- 当 action 为 final_answer 时，必须给出 answer；',
-                        '- 如果问题无需工具即可回答，或信息已充分，直接输出 final_answer。',
-                        '- 当用户明确要求重新执行或再次查询时（例如说“再查一次”），你必须重新调用相关工具，而不是依赖历史 observation 的旧数据。',
+                        REACT_SYSTEM_PROMPT.content,
                     ].join('\n'),
                 ),
                 new HumanMessage(
@@ -97,6 +82,8 @@ export class PromptReActExecutor {
                     ].join(''),
                 ),
             ]
+
+            console.log('promptMessages: ', promptMessages)
 
             let raw: any
             try {
@@ -122,7 +109,7 @@ export class PromptReActExecutor {
             if (!parseResult.success) {
                 const step: ReActStep = {
                     thought: '解析模型输出失败，准备终止。',
-                    action: 'final_answer',
+                    action: REACT_ACTION_TYPE.FINAL_ANSWER,
                     answer: `对不起，决策解析失败：${parseResult.error}`,
                 }
                 steps.push(step)
@@ -134,11 +121,11 @@ export class PromptReActExecutor {
             steps.push(step)
             yield JSON.stringify(step)
 
-            if (step.action === 'final_answer') {
+            if (step.action === REACT_ACTION_TYPE.FINAL_ANSWER) {
                 return
             }
 
-            if (step.action === 'tool_call') {
+            if (step.action === REACT_ACTION_TYPE.TOOL_CALL) {
                 const toolName = step.action_input?.tool_name
                 const parameters = { ...(step.action_input?.parameters ?? {}) } as Record<string, unknown>
                 if (!toolName) {
@@ -152,7 +139,7 @@ export class PromptReActExecutor {
                 // 添加工具调用开始的提示
                 const toolCallNotice: ReActStep = {
                     thought: `正在调用工具: ${toolName}`,
-                    action: 'tool_call',
+                    action: REACT_ACTION_TYPE.TOOL_CALL,
                     action_input: {
                         tool_name: toolName,
                         parameters,
@@ -180,7 +167,7 @@ export class PromptReActExecutor {
         // 达到步数上限
         const fallback: ReActStep = {
             thought: '达到最大推理步数，返回当前最优答案。',
-            action: 'final_answer',
+            action: REACT_ACTION_TYPE.FINAL_ANSWER,
             answer: steps[steps.length - 1]?.observation || '未能在限定步数内得到明确答案。',
         }
         yield JSON.stringify(fallback)
@@ -190,7 +177,7 @@ export class PromptReActExecutor {
 function normalizeStep(obj: any): ReActStep {
     const step: ReActStep = {
         thought: typeof obj?.thought === 'string' ? obj.thought : '',
-        action: (obj?.action as ReActActionType) ?? 'final_answer',
+        action: (obj?.action as ReActActionType) ?? REACT_ACTION_TYPE.FINAL_ANSWER,
         observation: typeof obj?.observation === 'string' ? obj.observation : undefined,
         answer: typeof obj?.answer === 'string' ? obj.answer : undefined,
     }

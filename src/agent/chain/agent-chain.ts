@@ -2,6 +2,7 @@ import type { BaseMessage } from '@langchain/core/messages'
 import type { Agent } from '../agent.js'
 import type { ChainContext, ChainOptions, ChainStep } from './types.js'
 import { createLogger } from '../utils/logger.js'
+import { REACT_ACTION_TYPE } from './prompt/react.prompt.js'
 import {
     ReActExecutionStep,
     ResponseEnhancementStep,
@@ -74,7 +75,7 @@ function hasFinalAnswer(reactResults?: string[]): boolean {
         const s = reactResults[i]
         try {
             const step = s ? JSON.parse(s) : null
-            if (step && step.action === 'final_answer' && typeof step.answer === 'string') {
+            if (step && step.action === REACT_ACTION_TYPE.FINAL_ANSWER && typeof step.answer === 'string') {
                 return true
             }
         }

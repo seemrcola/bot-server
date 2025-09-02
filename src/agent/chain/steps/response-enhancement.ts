@@ -3,6 +3,7 @@ import type { ChainContext, ChainStep } from '../types.js'
 import { HumanMessage, SystemMessage } from '@langchain/core/messages'
 import { createLogger } from '../../utils/logger.js'
 import { extractText } from '../executors/index.js'
+import { REACT_ACTION_TYPE } from '../prompt/react.prompt.js'
 
 const logger = createLogger('ResponseEnhancementStep')
 
@@ -60,7 +61,7 @@ export class ResponseEnhancementStep implements ChainStep {
                 const result = reactResults[i]
                 if (result) {
                     const step = JSON.parse(result)
-                    if (step.action === 'final_answer' && step.answer && typeof step.answer === 'string') {
+                    if (step.action === REACT_ACTION_TYPE.FINAL_ANSWER && step.answer && typeof step.answer === 'string') {
                         return step.answer
                     }
                 }
@@ -78,7 +79,7 @@ export class ResponseEnhancementStep implements ChainStep {
         for (const result of reactResults) {
             try {
                 const step = JSON.parse(result)
-                if (step.action === 'tool_call' && step.action_input?.tool_name && typeof step.action_input.tool_name === 'string' && step.observation && typeof step.observation === 'string') {
+                if (step.action === REACT_ACTION_TYPE.TOOL_CALL && step.action_input?.tool_name && typeof step.action_input.tool_name === 'string' && step.observation && typeof step.observation === 'string') {
                     toolCalls.push({
                         tool: step.action_input.tool_name,
                         result: step.observation,
