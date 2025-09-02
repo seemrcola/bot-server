@@ -9,7 +9,7 @@ import { MCPServer } from '@/agent/index.js'
 
 import { createLogger } from '@/utils/logger.js'
 
-const logger = createLogger('WeatherMCP')
+const logger = createLogger('AntfeMCP')
 
 /**
  * 创建并启动一个测试用的外部 MCP 服务器。

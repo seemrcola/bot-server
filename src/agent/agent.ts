@@ -19,7 +19,7 @@ const BASE_SYSTEM_PROMPT = `
 export class Agent {
     private llm: BaseLanguageModel
     private systemPrompt: string
-    private externalClientManager: ClientManager
+    private externalClientManager: ClientManager // tools
     // 已移除 allTools 缓存，避免状态陈旧与未使用字段
     public readonly ready: Promise<void>
     private resolveReady!: () => void
