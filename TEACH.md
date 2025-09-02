@@ -133,36 +133,43 @@ graph LR
 
 #### 本项目的多Agent实现
 
-我们的项目采用了"Leader + 子Agent"的架构模式：
+我们的项目采用了“父-子”多Agent架构模式。**Leader Agent** 作为父Agent，是所有请求的统一入口，它负责理解用户意图，并将任务分发给最合适的子Agent，或者自己处理通用任务。
 
 ```mermaid
 graph TD
-    User["用户请求"] --> Router["智能路由"]
-    Router --> Leader["Leader Agent"]
-    Router --> AntfeAgent["Antfe Agent"]
-    Router --> TestAgent["Test Agent"]
-    Router --> OtherAgent["其他专业Agent"]
+    User["用户请求"] --> LeaderAgent["Leader Agent (父Agent)\n负责路由和通用任务"]
 
-    Leader --> LLM1["通用LLM"]
-    AntfeAgent --> LLM2["专业LLM"]
-    TestAgent --> LLM3["专业LLM"]
+    subgraph "专业子Agent"
+        LeaderAgent -- "路由到 Antfe" --> AntfeAgent["Antfe Agent\n(专业领域)"]
+        LeaderAgent -- "路由到 WebHelper" --> WebHelperAgent["WebHelper Agent\n(专业领域)"]
+        LeaderAgent -- "路由到..." --> OtherAgent["其他专业Agent..."]
+    end
 
-    Leader --> Tools1["系统工具\n比较工具\n求和工具"]
-    AntfeAgent --> Tools2["Antfe成员查询"]
-    TestAgent --> Tools3["训练清单工具"]
+    subgraph "LLM 与工具层 (每个Agent独立)"
+        LeaderAgent --> LLM1["通用LLM"]
+        LeaderAgent --> Tools1["通用系统工具"]
+        AntfeAgent --> LLM2["LLM (可特调)"]
+        AntfeAgent --> Tools2["Antfe专用工具集"]
+        WebHelperAgent --> LLM3["LLM (可特调)"]
+        WebHelperAgent --> Tools3["网页抓取工具集"]
+    end
 ```
 
 #### 路由策略
 
-1. **显式指定**：用户明确指定要使用的Agent
-2. **智能路由**：使用LLM分析用户需求，自动选择最合适的Agent
-3. **Leader兜底**：当没有合适的专业Agent时，由Leader Agent处理
+Leader Agent 采用以下策略进行任务分发：
+
+1.  **意图识别**：Leader Agent 首先分析用户请求，识别其核心意图。
+2.  **Agent匹配**：根据识别出的意图，将其与各个专业子Agent的能力进行匹配。
+3.  **任务分发**：
+    *   如果匹配到合适的专业Agent，则将任务分发给它。
+    *   如果没有匹配到专业Agent，或者任务本身就是通用性质的，则由Leader Agent自行处理。
 
 #### 实际应用场景
 
-- **通用对话**：由Leader Agent处理日常对话和基础问答
-- **团队信息查询**：由Antfe Agent处理团队成员相关的查询
-- **专业计算**：由相应的专业Agent处理特定领域的计算任务
-- **多步骤任务**：可能需要多个Agent协同完成复杂任务
+- **通用对话**：当用户进行日常对话或基础问答时，Leader Agent 判断无须专业Agent，自行处理。
+- **团队信息查询**：Leader Agent 识别到意图后，将任务转交给 Antfe Agent 处理。
+- **网页内容提取**：Leader Agent 识别到意图后，将任务转交给 WebHelper Agent 处理。
+- **多步骤任务**：Leader Agent 负责拆解复杂任务，并协调多个子Agent协同完成。
 
 通过这种架构，我们实现了既保持系统简单性，又能处理复杂专业任务的平衡。
