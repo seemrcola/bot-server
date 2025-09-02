@@ -9,10 +9,10 @@ export {
 } from './executors/index.js'
 
 export type {
-    ReActActionType,
     ReActExecutorOptions,
     ReActStep,
 } from './executors/index.js'
+
 // 导出步骤类（如果需要单独使用）
 export {
     ReActExecutionStep,
