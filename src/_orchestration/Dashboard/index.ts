@@ -1,7 +1,7 @@
 import Antfe from './Antfe/index.js'
-import WebHelper from './WebHelper/index.js'
+import Test from './Test/index.js'
 
 export const dashboards = [
     Antfe,
-    WebHelper,
+    Test,
 ]

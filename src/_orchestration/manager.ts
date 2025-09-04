@@ -1,4 +1,4 @@
-import type { Agent } from '@/agent/index.js'
+import type { Agent } from '@/_agent/index.js'
 /**
  * Agent Manager（Orchestration 层）
  * 负责创建、管理和提供多个 Agent 实例。

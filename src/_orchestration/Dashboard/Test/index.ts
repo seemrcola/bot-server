@@ -1,14 +1,14 @@
 import getPort, { portNumbers } from 'get-port'
 import { createLogger } from '@/utils/logger.js'
-import { startWebCatcherMCP } from './webCatcher/index.js'
+import { startTestMCP } from './mcp.js'
 
-const logger = createLogger('WebHelperMCP')
+const logger = createLogger('TestMCP')
 
 export const mcpServersDescription = [
-    { name: 'web-catcher-mcp-server', starter: startWebCatcherMCP },
+    { name: 'test-mcp-server', starter: startTestMCP },
 ]
 
-export async function startWebHelperServers() {
+export async function startLeaderServers() {
     const servers = []
     for (const server of mcpServersDescription) {
         const port = await getPort({ port: portNumbers(3100, 3999) })
@@ -20,7 +20,7 @@ export async function startWebHelperServers() {
 };
 
 export default {
-    name: 'web-helper-agent',
-    starter: startWebHelperServers,
-    agentDescription: '当用户需要获取网页相关信息时, 使用此agent',
+    name: 'test-agent',
+    starter: startLeaderServers,
+    agentDescription: '当用户需要agent基本功能测试时, 使用此agent',
 }

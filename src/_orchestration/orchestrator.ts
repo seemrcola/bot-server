@@ -1,6 +1,6 @@
 import type { BaseMessage } from '@langchain/core/messages'
 import { HumanMessage, SystemMessage } from '@langchain/core/messages'
-import { AgentChain } from '@/agent/index.js'
+import { AgentChain } from '@/_agent/index.js'
 import { globals } from '@/globals.js'
 import { createLogger } from '@/utils/logger.js'
 import {

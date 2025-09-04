@@ -1,11 +1,13 @@
 import type { Express } from 'express'
+
 import process from 'node:process'
 import cors from 'cors'
 import express from 'express'
-import { config } from './config/index.js'
+import { initLeaderOrchestration } from './_orchestration/index.js'
+import { pg } from './db/index.js'
+import { applyMigrations } from './db/migration.js'
 import { globals } from './globals.js'
 import { handleError, handleSuccess } from './middlewares/response.middleware.js'
-import { initLeaderOrchestration } from './orchestration/index.js'
 import { mainRouter } from './routes/index.js'
 import { createLogger } from './utils/logger.js'
 
@@ -34,6 +36,12 @@ app.use(handleError);
  */
 (async () => {
     try {
+        // 测试数据库连接 并保存到全局变量中
+        globals.pgPool = await pg.testConnection()
+
+        // 应用数据库迁移
+        await applyMigrations(globals.pgPool)
+
         // 构建全局就绪 Promise（集中初始化）
         globals.agentManagerReady = (async () => {
             // 创建编排工具
@@ -44,12 +52,13 @@ app.use(handleError);
         await globals.agentManagerReady
     }
     catch (error) {
-        logger.error('初始化失败', error)
+        logger.error('初始化失败，数据库连接错误', error)
+        process.exit(1)
     }
 })()
 
 // 启动服务器监听端口
-const port = Number(process.env['PORT']) || config.port
+const port = Number(process.env['PORT'])
 app.listen(port, () => {
     logger.info('API 服务器已启动', { 端口: port })
 })

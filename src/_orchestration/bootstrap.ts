@@ -1,5 +1,5 @@
 import type { MCPServerDescription } from './types.js'
-import { Agent } from '@/agent/index.js'
+import { Agent } from '@/_agent/index.js'
 import { createLogger } from '@/utils/logger.js'
 import { dashboards } from './Dashboard/index.js'
 // leader 模块 和 dashboard 模块

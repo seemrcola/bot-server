@@ -22,7 +22,7 @@ export function getHealthStatus(req: Request, res: Response, next: NextFunction)
         next()
     }
     catch (error) {
-    // 如果发生同步错误，传递给错误处理中间件
+        // 如果发生同步错误，传递给错误处理中间件
         next(error)
     }
 }

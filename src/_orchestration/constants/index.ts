@@ -10,7 +10,7 @@
  */
 export const ROUTING_CONFIDENCE = {
     /** 多Agent路由的默认置信度阈值（统一模式） */
-    MULTI_AGENT_THRESHOLD: 0.3,
+    MULTI_AGENT_THRESHOLD: 0.6,
     /** 显式指定Agent时的固定置信度 */
     EXPLICIT_CONFIDENCE: 1.0,
     /** Leader兜底时的固定置信度 */

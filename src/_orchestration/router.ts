@@ -24,18 +24,6 @@ export interface LLMMultiRouteResult {
 
 export type LLMMultiRouteTuple = [error: string | null, data: LLMMultiRouteResult | null]
 
-function getLastHumanText(messages: BaseMessage[]): string {
-    for (let i = messages.length - 1; i >= 0; i--) {
-        const m: any = messages[i]
-        const type = typeof m?.getType === 'function' ? m.getType() : m?._type ?? m?.type
-        if (type === 'human') {
-            const content = (m?.content ?? '') as any
-            return typeof content === 'string' ? content : String(content ?? '')
-        }
-    }
-    return ''
-}
-
 /**
  * 使用 LLM 进行多 Agent 路由：分析用户需求，返回多个可能匹配的 Agent
  * 注意：单Agent只是多Agent的特殊情况（N=1），统一使用此函数进行路由
@@ -71,8 +59,6 @@ export async function selectMultipleAgentsByLLM(params: {
         keywords: s.meta?.keywords || [],
         aliases: s.meta?.aliases || [],
     }))
-
-    // const userText = getLastHumanText(params.messages)
 
     const sys = new SystemMessage([
         '你是一个智能任务分解器和路由器。你的职责：',
