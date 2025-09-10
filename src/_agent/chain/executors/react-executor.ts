@@ -5,8 +5,15 @@ import type { ClientManager } from '../../mcp/client/manager.js'
 import type { ReActActionType } from '../prompt/react.prompt.js'
 import { HumanMessage, SystemMessage } from '@langchain/core/messages'
 import { createLogger } from '../../utils/logger.js'
-import { REACT_ACTION_TYPE, REACT_SYSTEM_PROMPT } from '../prompt/react.prompt.js'
-import { extractDisplayableTextFromToolResult, extractJsonFromText, extractText } from './utils.js'
+import {
+    REACT_ACTION_TYPE,
+    REACT_SYSTEM_PROMPT,
+} from '../prompt/react.prompt.js'
+import {
+    extractDisplayableTextFromToolResult,
+    extractJsonFromText,
+    extractText,
+} from './utils.js'
 
 const logger = createLogger('ReActExecutor')
 const MAX_STEPS = 8
@@ -65,10 +72,7 @@ export class PromptReActExecutor {
                  * @see src/agent/chain/prompt/react.prompt.ts
                  */
                 new SystemMessage(
-                    [
-                        this.systemPrompt,
-                        REACT_SYSTEM_PROMPT.content,
-                    ].join('\n'),
+                    [this.systemPrompt, REACT_SYSTEM_PROMPT.content].join('\n'),
                 ),
                 new HumanMessage(
                     [
@@ -91,7 +95,8 @@ export class PromptReActExecutor {
                  * 根据传入的温度，尝试对模型进行参数绑定
                  */
                 const baseModel: any = this.llm as any
-                const llmToUse: any = (typeof baseModel?.bind === 'function' && typeof options.temperature === 'number')
+                const llmToUse: any = typeof baseModel?.bind === 'function'
+                    && typeof options.temperature === 'number'
                     ? baseModel.bind({ temperature: options.temperature })
                     : baseModel
                 raw = await llmToUse.invoke(promptMessages)
@@ -127,7 +132,9 @@ export class PromptReActExecutor {
 
             if (step.action === REACT_ACTION_TYPE.TOOL_CALL) {
                 const toolName = step.action_input?.tool_name
-                const parameters = { ...(step.action_input?.parameters ?? {}) } as Record<string, unknown>
+                const parameters = {
+                    ...(step.action_input?.parameters ?? {}),
+                } as Record<string, unknown>
                 if (!toolName) {
                     const obs = '缺少 tool_name，无法调用工具。'
                     const lastStep = steps[steps.length - 1]!
@@ -149,7 +156,10 @@ export class PromptReActExecutor {
                 yield JSON.stringify(toolCallNotice)
 
                 try {
-                    const result = await this.clientManager.callTool(toolName, parameters)
+                    const result = await this.clientManager.callTool(
+                        toolName,
+                        parameters,
+                    )
                     const observation = extractDisplayableTextFromToolResult(result)
                     const lastStep = steps[steps.length - 1]!
                     lastStep.observation = `✅ 工具 [${toolName}] 执行完成\n\n执行结果:\n${observation}`
@@ -168,7 +178,9 @@ export class PromptReActExecutor {
         const fallback: ReActStep = {
             thought: '达到最大推理步数，返回当前最优答案。',
             action: REACT_ACTION_TYPE.FINAL_ANSWER,
-            answer: steps[steps.length - 1]?.observation || '未能在限定步数内得到明确答案。',
+            answer:
+        steps[steps.length - 1]?.observation
+        || '未能在限定步数内得到明确答案。',
         }
         yield JSON.stringify(fallback)
     }
@@ -178,13 +190,17 @@ function normalizeStep(obj: any): ReActStep {
     const step: ReActStep = {
         thought: typeof obj?.thought === 'string' ? obj.thought : '',
         action: (obj?.action as ReActActionType) ?? REACT_ACTION_TYPE.FINAL_ANSWER,
-        observation: typeof obj?.observation === 'string' ? obj.observation : undefined,
+        observation: typeof obj?.observation === 'string'
+            ? obj.observation
+            : undefined,
         answer: typeof obj?.answer === 'string' ? obj.answer : undefined,
     }
     if (obj?.action_input && typeof obj.action_input === 'object') {
         step.action_input = {
             tool_name: obj?.action_input?.tool_name,
-            parameters: (obj?.action_input?.parameters && typeof obj.action_input.parameters === 'object') ? obj.action_input.parameters : {},
+            parameters: obj?.action_input?.parameters && typeof obj.action_input.parameters === 'object'
+                ? obj.action_input.parameters
+                : {},
         }
     }
     return step

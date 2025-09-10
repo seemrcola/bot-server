@@ -130,3 +130,277 @@ graph LR
 2. **可扩展性**：可以根据需要添加新的专业Agent
 3. **模块化管理**：Agent之间相对独立，便于维护和更新
 4. **负载分散**：不同类型的请求可以由相应的专业Agent处理
+
+### agent设计与实现
+
+#### agent基础interface设计
+我们先确定我们的Agent的interface。我们先创建一个teach.agent.ts文件，我们后续的代码都在这个文件中实现。
+```ts
+interface IAgent {
+    llm: any
+    tools: any[]
+    prompt: string
+}
+```
+我们之前讲过，agent就是协调tool和llm的，所以我们的参数里面两个必须要有的就是llm和tools，prompt作为系统提示词可以选填。
+至此，我们迈出了第一步，也就是我们确定了我们的Agent`长什么样`。
+
+#### 创建大模型实例
+这一步我们使用deepseek举例子。
+```ts
+import { ChatDeepSeek } from '@langchain/deepseek'
+
+const llm = new ChatDeepSeek({
+    apiKey: 'your-api-key', // 你的api key
+    model: 'deepseek-chat', // 可选 'deepseek-chat' 或 'deepseek-reasoner'
+    temperature: 0.5, // 温度
+    streaming: true, // 流式输出
+})
+```
+为了方便我直接使用了 @langchain/deepseek 这个包。它会默认帮我们设置baseURL为https://api.deepseek.com/v1。
+deepseek兼容openai，如果你使用的是openai的npm包也是可以使用deepseek的。如下：
+```ts
+import OpenAI from 'openai'
+
+// 初始化客户端
+const llm = new OpenAI({
+    apiKey: 'your-deepseek-api-key', //  替换为你的DeepSeek API密钥
+    baseURL: 'https://api.deepseek.com/v1', // DeepSeek API地址
+})
+```
+
+至此，我们迈出了第二步，也就是我们创建了我们的LLM实例。
+
+#### 创建工具
+```ts
+interface Tool {
+    name: string // 工具名称
+    description: string // 工具描述
+    func: (...args: any[]) => any // 工具函数
+}
+```
+```ts
+/**
+ * 创建工具
+ * @description 这里我们以读取文件为例
+ */
+const readFileTool: Tool = {
+    name: 'read_file',
+    description: '读取文件',
+    func: async (filePath: string) => {
+        return fs.readFileSync(filePath, 'utf-8')
+    },
+}
+const helloWorldTool: Tool = {
+    name: 'hello_world',
+    description: '当用户问你hello world时，你回复hello world',
+    func: async () => {
+        return 'hello world'
+    },
+}
+const tools: Tool[] = [readFileTool, helloWorldTool]
+```
+至此，我们迈出了第三步，也就是我们确定了我们的Tool`长什么样`。
+
+#### 让Agent周转于LLM和Tool之间
+根据上述的Agent的interface，我们知道了我们创建Agent的时候需要传递哪些参数。 根据这些，我们先实现一个Agent的类。
+```ts
+// ------------
+// 之前的代码略去
+// -------------
+
+import { BaseLanguageModel } from '@langchain/core/language_models/base'
+
+interface Tool {
+    name: string
+    description: string
+    func: (...args: any[]) => any
+}
+
+class Agent implements IAgent {
+    private llm: any
+    private tools: Tool[]
+    private prompt: string
+
+    constructor(llm: BaseLanguageModel, tools: Tool[], prompt: string) {
+        this.llm = llm
+        this.tools = tools
+        this.prompt = prompt
+    }
+}
+```
+现在我们有了一个基础的Agent类，接下来我们逐步完善它。
+现在我们所有的对话要通过agent去做转发，所以agent需要代理llm的对话功能：
+```ts
+// ----
+// 之前的代码略去
+// ----
+
+import { HumanMessage, SystemMessage } from '@langchain/core/messages'
+
+interface BaseMessage {
+    role: string
+    content: string
+}
+class Agent {
+    // ......
+
+    /**
+     * 聊天
+     * @param messages - 消息
+     * @returns 回复
+     * @description 这里我们使用langchain的invoke方法来转发对话
+     *              由于使用langchain，message格式也用他的标准方法来处理
+     */
+    public async chat(messages: BaseMessage[]) {
+        const chatMessages = messages.map((message) => {
+            if (message.role === 'human')
+                return new HumanMessage(message.content)
+
+            return new AIMessage(message.content)
+        })
+        const response = await this.llm.invoke([
+            new SystemMessage(this.prompt),
+            ...chatMessages,
+        ])
+        return response
+    }
+}
+```
+到这一步之后，我们就可以和大模型正常对话了。
+```ts
+const response = await agent.chat([{ role: 'human', content: '你好' }])
+console.log(response)
+```
+但是很显然这还不行，这仅仅只是使用了llm的对话功能，我们需要
+1. 让llm知道我们（Agent）手上有什么工具。
+2. 让llm知道它应该调用哪个工具。
+接下来我们实现这两个功能。
+
+```ts
+// ......
+
+/**
+ * Agent 类
+ * @param llm - LLM 实例
+ * @param tools - 工具列表
+ * @param prompt - 系统提示词
+ */
+class Agent {
+    private llm: BaseLanguageModel
+    private tools: Tool[]
+    private prompt: string
+
+    constructor(llm: any, tools: Tool[], prompt: string) {
+        this.llm = llm
+        this.tools = tools
+        this.prompt = prompt
+    }
+
+    private async intentAnalysis(messages: BaseMessage[]): Promise<{ intent: 'llm_call' } | { intent: 'tool_call', name: string, arguments: any }> {
+        const lastMessage = messages[messages.length - 1]!
+
+        const systemPrompt = `
+你是一个智能的AI助手，你的任务是分析用户的请求，并决定如何响应。
+
+你有以下几种选择：
+1. **直接回答**: 如果这是一个普通问题或闲聊，你可以直接回答。
+2. **使用工具**: 如果用户的请求需要执行特定操作（如读取文件），你可以使用工具。
+
+可用的工具有:
+${JSON.stringify(this.tools.map(t => ({ name: t.name, description: t.description })), null, 2)}
+
+请根据用户的最新消息分析意图: "${lastMessage.content}"
+
+你的响应必须是以下两种格式之一:
+
+A) 如果是普通问题，请仅响应:
+{ "intent": "llm_call" }
+
+B) 如果需要使用工具，请响应一个包含工具信息的JSON对象:
+{ "intent": "tool_call", "name": "工具名称", "arguments": { "参数名": "参数值" } }
+`.trim()
+
+        const response = await this.llm.invoke([new SystemMessage(systemPrompt)])
+        const resultText = response.content.toString().trim()
+
+        try {
+            const start = resultText.indexOf('{')
+            const end = resultText.lastIndexOf('}')
+            const jsonStr = resultText.slice(start, end + 1)
+            const result = JSON.parse(jsonStr)
+
+            if (result.intent === 'tool_call' && result.name && this.tools.some(t => t.name === result.name))
+                return { intent: 'tool_call', name: result.name, arguments: result.arguments || {} }
+        }
+        catch (e) {
+            console.error('意图分析JSON解析失败:', resultText, e)
+        }
+
+        // 如果解析失败或格式不正确，则默认为 llm_call
+        return { intent: 'llm_call' }
+    }
+
+    private async toolCall(messages: BaseMessage[], toolInfo: { name: string, arguments: any }) {
+        // 1. 执行工具
+        const tool = this.tools.find(t => t.name === toolInfo.name)
+        if (!tool)
+            return `错误：找不到名为 "${toolInfo.name}" 的工具。`
+
+        let toolResult
+        try {
+            toolResult = await tool.func(...Object.values(toolInfo.arguments || {}))
+        }
+        catch (error: any) {
+            toolResult = `工具执行出错: ${error.message}`
+        }
+
+        // 2. 生成最终回复
+        const finalMessages = [
+            ...messages.map(m => m.role === 'human' ? new HumanMessage(m.content) : new AIMessage(m.content)),
+            new AIMessage(`好的，我将使用工具: ${toolInfo.name}`),
+            new HumanMessage(`[${tool.name} 工具的结果]:\n${String(toolResult)}`),
+        ]
+
+        const finalResponse = await this.llm.invoke([
+            new SystemMessage(this.prompt),
+            ...finalMessages,
+        ])
+
+        return finalResponse
+    }
+
+    public async chat(messages: BaseMessage[]) {
+        const analysisResult = await this.intentAnalysis(messages)
+
+        if (analysisResult.intent === 'tool_call') {
+            console.log(`--- 意图: 工具调用 (${analysisResult.name}) ---`)
+            return this.toolCall(messages, { name: analysisResult.name, arguments: analysisResult.arguments })
+        }
+        else {
+            console.log('--- 意图: 普通对话 ---')
+            const chatMessages = messages.map((message) => {
+                if (message.role === 'human')
+                    return new HumanMessage(message.content)
+
+                return new AIMessage(message.content)
+            })
+            const response = await this.llm.invoke([
+                new SystemMessage(this.prompt),
+                ...chatMessages,
+            ])
+            return response
+        }
+    }
+}
+```
+逻辑链条很简单，如下：
+
+```mermaid
+graph TD
+    A[用户请求] --> B[意图分析]
+    B --> C[工具调用]
+    C --> D[最终回复]
+```
+
+到这一步之后，我们就可以让Agent正常工作了。
