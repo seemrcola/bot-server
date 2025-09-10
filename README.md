@@ -31,7 +31,11 @@ pnpm start
 ```
 
 ### 测试
-public/chat.html 是测试网页。
+后续会有一个playground项目与这个服务做完整对接。
+
+暂时可以使用我的另一个仓库 bot-app 来做对话测试。
+
+目前支持的工具写在了 `src/_orchestration/Dashboard/*` 下。
 
 🔄 处理流程
 
