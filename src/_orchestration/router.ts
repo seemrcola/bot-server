@@ -15,6 +15,7 @@ export interface LLMRouteResult {
     reason: string // 命中原因（模型给出的理由）
     confidence: number // 置信度（0~1）
     task?: string // 该Agent的具体任务描述（可选）
+    order?: number // 可选：执行顺序（从1开始，数值越小越先执行）
 }
 
 export interface LLMMultiRouteResult {
@@ -72,6 +73,7 @@ export async function selectMultipleAgentsByLLM(params: {
         '- 每个Agent只处理自己专长领域的任务',
         '- 不同的Agent不应重复执行相同类型的工作',
         '- 按逻辑顺序安排Agent执行',
+        '- 如果有明确的先后依赖，请提供 order 字段指定执行顺序（从1开始的整数）',
         '',
         '输出格式（JSON数组）：',
         '对于通用问题：[]',
@@ -81,7 +83,8 @@ export async function selectMultipleAgentsByLLM(params: {
         '    "target": "agent-name",',
         '    "task": "该Agent的具体任务描述",',
         '    "reason": "选择该Agent的原因",',
-        '    "confidence": 0.0到1.0之间的数值',
+        '    "confidence": 0.0到1.0之间的数值,',
+        '    "order": 1（可选）',
         '  }',
         ']',
     ].join('\n'))
@@ -135,6 +138,7 @@ export async function selectMultipleAgentsByLLM(params: {
             const task = typeof result.task === 'string' ? result.task.trim() : ''
             const reason = typeof result.reason === 'string' ? result.reason : ''
             const confidence = typeof result.confidence === 'number' ? result.confidence : 0
+            const order = typeof result.order === 'number' ? result.order : undefined
 
             // 检查基本有效性
             if (!target)
@@ -163,14 +167,24 @@ export async function selectMultipleAgentsByLLM(params: {
                 routeResult.task = task
             }
 
+            // 有效的顺序信息时附加
+            if (typeof order === 'number') {
+                routeResult.order = order
+            }
+
             validAgents.push(routeResult)
         }
 
-        // 按置信度排序（高到低）
-        validAgents.sort((a, b) => b.confidence - a.confidence)
+        // 基于 order（如提供）进行排序；未提供则保持原始顺序
+        const orderedAgents = (() => {
+            const withOrder = validAgents.filter(a => typeof a.order === 'number')
+            const withoutOrder = validAgents.filter(a => typeof a.order !== 'number')
+            withOrder.sort((a, b) => (a.order as number) - (b.order as number))
+            return [...withOrder, ...withoutOrder]
+        })()
 
         // 限制返回数量
-        const finalAgents = validAgents.slice(0, maxAgents)
+        const finalAgents = orderedAgents.slice(0, maxAgents)
 
         // 允许返回空数组，让调用方决定如何处理（比如回退到Leader）
         return [null, {
